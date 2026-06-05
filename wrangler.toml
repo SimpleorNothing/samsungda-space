@@ -1,0 +1,7 @@
+name = "samsungda-space"
+compatibility_date = "2026-05-01"
+pages_build_output_dir = "public"
+
+[[r2_buckets]]
+binding = "SPACE"
+bucket_name = "samsungda-space"
