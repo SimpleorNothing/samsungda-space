@@ -1,7 +1,13 @@
 // DA Space 공유 유틸 — 방 목록·해시·인덱스·인증·페이지 템플릿
 // 방 구성을 바꾸려면 ROOMS 배열만 수정하면 됩니다.
 
-export const ROOMS = ['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6'];
+export const ROOMS = ['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'autoweb'];
+
+// 에디터 방 — 파일 업로드 대신 마크다운 입력창으로 페이지를 작성·게시
+export const EDITOR_ROOMS = ['autoweb'];
+export function isEditorRoom(id) {
+  return EDITOR_ROOMS.indexOf(id) !== -1;
+}
 
 // 방 이름 형식: 영문·숫자·하이픈·언더스코어 1~40자 (URL·R2 키·쿠키 모두 안전)
 const ROOM_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
@@ -140,23 +146,81 @@ button:disabled{opacity:.5;cursor:default}
 .status-line{font-size:13px;color:var(--muted);margin-top:6px}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px;min-height:18px}
 .status-msg.err{color:#c0392b}
+textarea.md{width:100%;min-height:280px;margin-top:16px;font-family:inherit;font-size:14px;line-height:1.7;
+  color:var(--text);background:var(--bg);border:1.5px solid var(--border);border-radius:14px;
+  padding:14px 16px;outline:none;resize:vertical;}
+textarea.md:focus{border-color:var(--brand)}
+.preview-label{font-size:13px;font-weight:600;color:var(--muted);margin-top:16px}
+.preview{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:22px;margin-top:8px;
+  min-height:100px;overflow:auto;}
+`;
+
+// 마크다운 본문 타이포그래피 — 미리보기(.preview)와 게시 문서가 공유
+export const MD_CSS = `
+.md-body{font-size:15px;line-height:1.75;color:#1a1d21}
+.md-body h1{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:28px 0 12px}
+.md-body h1:first-child{margin-top:0}
+.md-body h2{font-size:20px;font-weight:700;letter-spacing:-0.3px;margin:24px 0 10px}
+.md-body h3{font-size:17px;font-weight:700;margin:20px 0 8px}
+.md-body p{margin:10px 0}
+.md-body ul,.md-body ol{margin:10px 0 10px 22px}
+.md-body li{margin:4px 0}
+.md-body a{color:#1257d6}
+.md-body code{background:#f6f7f9;border:1px solid #e6e9ee;border-radius:4px;padding:1px 5px;font-size:13px}
+.md-body pre{background:#f6f7f9;border:1px solid #e6e9ee;border-radius:14px;padding:14px 16px;overflow:auto;margin:12px 0}
+.md-body pre code{background:none;border:none;padding:0}
+.md-body blockquote{border-left:3px solid #1257d6;margin:12px 0;padding:2px 0 2px 14px;color:#5b6470}
+.md-body table{border-collapse:collapse;margin:12px 0;width:100%}
+.md-body th,.md-body td{border:1px solid #e6e9ee;padding:7px 10px;font-size:14px;text-align:left}
+.md-body th{background:#f6f7f9;font-weight:700}
+.md-body img{max-width:100%}
+.md-body hr{border:none;border-top:1px solid #e6e9ee;margin:20px 0}
 `;
 
 const FONT_LINK = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">`;
+const MARKED_LINK = `<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>`;
 
 // ---------- 방 페이지 (3상태: 빈방 / 잠김 / 사용중) ----------
 
 export function roomPage(room, meta, authorized) {
   const used = !!meta;
   const locked = used && meta.passwordHash && !authorized;
+  const editor = isEditorRoom(room);
   const title = used ? escapeHtml(meta.title || '(제목 없음)') : '';
   const updated = used ? escapeHtml(String(meta.updatedAt || '').slice(0, 10)) : '';
 
   let statusLine, bodyHtml, script;
 
   if (!used) {
-    statusLine = '빈방 · 지금 바로 사용할 수 있습니다';
-    bodyHtml = `
+    if (editor) {
+      statusLine = '빈방 · 마크다운으로 바로 작성해 게시할 수 있습니다';
+      bodyHtml = `
+      <div class="panel">
+        <h2>사용법</h2>
+        <ol>
+          <li>아래 입력창에 마크다운으로 내용을 작성합니다. (<code># 제목</code>, <code>- 목록</code>, <code>**굵게**</code>, <code>| 표 |</code> 등)</li>
+          <li>입력하는 즉시 아래 미리보기에서 완성된 페이지 모습을 확인할 수 있습니다.</li>
+          <li>게시하면 작성한 내용이 그대로 이 방의 웹페이지가 됩니다. 게시 후 수정·삭제 가능합니다.</li>
+        </ol>
+      </div>
+      <div class="field">
+        <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
+        <input id="title" type="text" placeholder="예: 주간 회의 안내">
+      </div>
+      <textarea id="md" class="md" placeholder="# 제목&#10;&#10;내용을 입력하세요…"></textarea>
+      <div class="preview-label">미리보기</div>
+      <div class="preview md-body" id="pv"></div>
+      <label class="opt"><input type="checkbox" id="pwChk"> 열람 비밀번호 설정</label>
+      <div class="field" id="pwField" style="display:none">
+        <label for="pw">비밀번호</label>
+        <input id="pw" type="password" autocomplete="new-password">
+      </div>
+      <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>
+      <div class="status-msg" id="msg"></div>`;
+      script = editorEmptyScript(room);
+    } else {
+      statusLine = '빈방 · 지금 바로 사용할 수 있습니다';
+      bodyHtml = `
       <div class="panel">
         <h2>사용법</h2>
         <ol>
@@ -178,7 +242,8 @@ export function roomPage(room, meta, authorized) {
       </div>
       <div class="btn-row"><button id="uploadBtn" disabled>업로드</button></div>
       <div class="status-msg" id="msg"></div>`;
-    script = emptyScript(room);
+      script = emptyScript(room);
+    }
   } else if (locked) {
     statusLine = '사용중 · ' + title + ' · 업데이트 ' + updated + ' · 열람 비밀번호가 설정된 방입니다';
     bodyHtml = `
@@ -192,6 +257,26 @@ export function roomPage(room, meta, authorized) {
         <div class="status-msg" id="msg"></div>
       </div>`;
     script = lockedScript(room);
+  } else if (editor) {
+    statusLine = '사용중 · ' + title + ' · 업데이트 ' + updated;
+    bodyHtml = `
+      <div class="viewer"><iframe src="/${room}/view" title="${room}"></iframe></div>
+      <div class="btn-row">
+        <button id="openBtn">전체화면으로 열기</button>
+        <button id="editBtn">내용 수정</button>
+        <button class="danger" id="deleteBtn">삭제</button>
+      </div>
+      <div id="editSec" style="display:none">
+        <textarea id="md" class="md"></textarea>
+        <div class="preview-label">미리보기</div>
+        <div class="preview md-body" id="pv"></div>
+        <div class="btn-row">
+          <button id="saveBtn">수정 게시</button>
+          <button id="cancelBtn">취소</button>
+        </div>
+      </div>
+      <div class="status-msg" id="msg"></div>`;
+    script = editorUsedScript(room, meta);
   } else {
     statusLine = '사용중 · ' + title + ' · 업데이트 ' + updated;
     bodyHtml = `
@@ -213,7 +298,8 @@ export function roomPage(room, meta, authorized) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${room} · DA Space</title>
 ${FONT_LINK}
-<style>${BASE_CSS}</style>
+${editor && !locked ? MARKED_LINK : ''}
+<style>${BASE_CSS}${editor && !locked ? MD_CSS : ''}</style>
 </head>
 <body>
 <div class="wrap">
@@ -243,6 +329,33 @@ function fileReaderSnippet() {
     r.onload = function(){ cb(r.result, file); };
     r.onerror = function(){ setMsg('파일을 읽지 못했습니다.', true); };
     r.readAsText(file);
+  }`;
+}
+
+// 에디터 공통: 메시지·이스케이프·게시 문서 빌드·미리보기 렌더
+function editorCoreSnippet() {
+  return `
+  var MD_CSS = ${JSON.stringify(MD_CSS)};
+  function setMsg(t, err){ msg.textContent = t || ''; msg.className = err ? 'status-msg err' : 'status-msg'; }
+  function esc(s){
+    return String(s || '').replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+  function buildDoc(title, bodyHtml){
+    return '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'
+      + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+      + '<title>' + esc(title) + '</title>'
+      + '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">'
+      + '<style>body{background:#fff;margin:0;padding:48px 24px;'
+      + "font-family:'Pretendard',system-ui,-apple-system,'Segoe UI',Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif}"
+      + '.wrap{max-width:860px;margin:0 auto}' + MD_CSS + '</style>'
+      + '</head><body><div class="wrap md-body">' + bodyHtml + '</div></body></html>';
+  }
+  function render(){
+    var t = md.value;
+    if(t.trim()){ pv.innerHTML = marked.parse(t); }
+    else { pv.innerHTML = '<p style="color:#5b6470;font-size:13px">위 입력창에 작성하면 여기에 미리보기가 표시됩니다.</p>'; }
   }`;
 }
 
@@ -292,6 +405,115 @@ function emptyScript(room) {
       else { setMsg('업로드 실패 (HTTP ' + r.status + ')', true); }
       uploadBtn.disabled = false;
     }).catch(function(e){ setMsg('업로드 실패: ' + e.message, true); uploadBtn.disabled = false; });
+  });
+})();`;
+}
+
+function editorEmptyScript(room) {
+  return `
+(function(){
+  var ROOM = '${room}';
+  var md = document.getElementById('md');
+  var pv = document.getElementById('pv');
+  var pwChk = document.getElementById('pwChk');
+  var pwField = document.getElementById('pwField');
+  var publishBtn = document.getElementById('publishBtn');
+  var msg = document.getElementById('msg');
+  ${editorCoreSnippet()}
+
+  md.addEventListener('input', function(){
+    render();
+    publishBtn.disabled = !md.value.trim();
+  });
+  render();
+  pwChk.addEventListener('change', function(){ pwField.style.display = pwChk.checked ? '' : 'none'; });
+
+  publishBtn.addEventListener('click', function(){
+    if(!md.value.trim()) return;
+    var pw = pwChk.checked ? document.getElementById('pw').value : '';
+    if(pwChk.checked && !pw){ setMsg('비밀번호를 입력하거나 설정을 해제하세요.', true); return; }
+    var title = document.getElementById('title').value;
+    publishBtn.disabled = true;
+    setMsg('게시 중…');
+    fetch('/api/room/' + ROOM, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        html: buildDoc(title || ROOM, marked.parse(md.value)),
+        markdown: md.value,
+        title: title,
+        password: pw
+      })
+    }).then(function(r){
+      if(r.ok){ location.reload(); return; }
+      if(r.status === 409){ setMsg('이미 사용중인 방입니다. 새로고침 후 확인하세요.', true); }
+      else { setMsg('게시 실패 (HTTP ' + r.status + ')', true); }
+      publishBtn.disabled = false;
+    }).catch(function(e){ setMsg('게시 실패: ' + e.message, true); publishBtn.disabled = false; });
+  });
+})();`;
+}
+
+function editorUsedScript(room, meta) {
+  const titleJs = JSON.stringify((meta && meta.title) ? meta.title : room).replace(/</g, '\\u003c');
+  return `
+(function(){
+  var ROOM = '${room}';
+  var TITLE = ${titleJs};
+  var md = document.getElementById('md');
+  var pv = document.getElementById('pv');
+  var editSec = document.getElementById('editSec');
+  var saveBtn = document.getElementById('saveBtn');
+  var msg = document.getElementById('msg');
+  ${editorCoreSnippet()}
+
+  document.getElementById('openBtn').addEventListener('click', function(){
+    window.open('/' + ROOM + '/view', '_blank');
+  });
+
+  document.getElementById('editBtn').addEventListener('click', function(){
+    setMsg('내용 불러오는 중…');
+    fetch('/' + ROOM + '/source').then(function(r){
+      return r.ok ? r.text() : '';
+    }).then(function(t){
+      md.value = t || '';
+      editSec.style.display = '';
+      render();
+      setMsg('');
+      md.focus();
+    }).catch(function(e){ setMsg('불러오기 실패: ' + e.message, true); });
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', function(){
+    editSec.style.display = 'none';
+    setMsg('');
+  });
+
+  md.addEventListener('input', render);
+
+  saveBtn.addEventListener('click', function(){
+    if(!md.value.trim()){ setMsg('내용을 입력하세요.', true); return; }
+    saveBtn.disabled = true;
+    setMsg('게시 중…');
+    fetch('/api/room/' + ROOM, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ html: buildDoc(TITLE, marked.parse(md.value)), markdown: md.value })
+    }).then(function(r){
+      if(r.ok){ location.reload(); return; }
+      setMsg(r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '게시 실패 (HTTP ' + r.status + ')', true);
+      saveBtn.disabled = false;
+    }).catch(function(e){ setMsg('게시 실패: ' + e.message, true); saveBtn.disabled = false; });
+  });
+
+  document.getElementById('deleteBtn').addEventListener('click', function(){
+    if(!window.confirm(ROOM + ' 방을 비울까요? 게시물이 삭제됩니다.')) return;
+    setMsg('삭제 중…');
+    fetch('/api/room/' + ROOM, { method: 'DELETE' })
+      .then(function(r){
+        if(r.ok){ location.href = '/'; return; }
+        setMsg(r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '삭제 실패 (HTTP ' + r.status + ')', true);
+      }).catch(function(e){ setMsg('삭제 실패: ' + e.message, true); });
   });
 })();`;
 }
