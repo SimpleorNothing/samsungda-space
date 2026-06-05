@@ -1,7 +1,7 @@
 // /api/room/:room — POST 업로드, PUT 교체, DELETE 삭제
 // 비밀번호 설정된 방의 PUT/DELETE는 인증 쿠키 또는 x-room-password 헤더 필요.
 import {
-  normalizeRoom, readIndex, writeIndex, sha256,
+  isValidRoomId, roomExists, readIndex, writeIndex, sha256,
   isAuthorized, authCookieHeader, json,
 } from '../../../_lib.js';
 
@@ -24,13 +24,14 @@ async function parseBody(request) {
 
 // 업로드 — 빈방에만 허용. 비밀번호 설정 시 업로더에게 인증 쿠키 즉시 발급.
 export async function onRequestPost(context) {
-  const room = normalizeRoom(context.params.room);
-  if (!room) return json({ error: 'unknown room' }, 404);
+  const room = context.params.room;
+  if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
 
   const body = await parseBody(context.request);
   if (!body) return json({ error: 'invalid body' }, 400);
 
   const index = await readIndex(context.env);
+  if (!roomExists(index, room)) return json({ error: 'unknown room' }, 404);
   if (index.rooms[room]) return json({ error: 'occupied' }, 409);
 
   const password = typeof body.password === 'string' ? body.password : '';
@@ -53,8 +54,8 @@ export async function onRequestPost(context) {
 
 // 교체 — 사용중인 방, 인증 필요
 export async function onRequestPut(context) {
-  const room = normalizeRoom(context.params.room);
-  if (!room) return json({ error: 'unknown room' }, 404);
+  const room = context.params.room;
+  if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
 
   const index = await readIndex(context.env);
   const meta = index.rooms[room];
@@ -76,8 +77,8 @@ export async function onRequestPut(context) {
 
 // 삭제 — 사용중인 방, 인증 필요
 export async function onRequestDelete(context) {
-  const room = normalizeRoom(context.params.room);
-  if (!room) return json({ error: 'unknown room' }, 404);
+  const room = context.params.room;
+  if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
 
   const index = await readIndex(context.env);
   const meta = index.rooms[room];

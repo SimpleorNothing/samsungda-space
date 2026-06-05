@@ -1,9 +1,9 @@
 // POST /api/room/:room/auth — 열람 비밀번호 검증 → 인증 쿠키 발급(12시간)
-import { normalizeRoom, readIndex, sha256, authCookieHeader, json } from '../../../_lib.js';
+import { isValidRoomId, readIndex, sha256, authCookieHeader, json } from '../../../_lib.js';
 
 export async function onRequestPost(context) {
-  const room = normalizeRoom(context.params.room);
-  if (!room) return json({ error: 'unknown room' }, 404);
+  const room = context.params.room;
+  if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
 
   const index = await readIndex(context.env);
   const meta = index.rooms[room];
