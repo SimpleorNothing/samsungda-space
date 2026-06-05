@@ -3,9 +3,26 @@
 
 export const ROOMS = ['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6'];
 
-export function normalizeRoom(raw) {
-  const id = String(raw || '').toUpperCase();
-  return ROOMS.includes(id) ? id : null;
+// 방 이름 형식: 영문·숫자·하이픈·언더스코어 1~40자 (URL·R2 키·쿠키 모두 안전)
+const ROOM_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+
+export function isValidRoomId(raw) {
+  return typeof raw === 'string' && ROOM_ID_RE.test(raw);
+}
+
+// 시드 방(ROOMS) + 동적 생성 방(index.created) 합본 목록 (중복 제거, 순서 유지)
+export function allRooms(index) {
+  const created = (index && Array.isArray(index.created)) ? index.created : [];
+  const seen = Object.create(null);
+  const list = [];
+  ROOMS.concat(created).forEach(function (id) {
+    if (!seen[id]) { seen[id] = true; list.push(id); }
+  });
+  return list;
+}
+
+export function roomExists(index, id) {
+  return allRooms(index).indexOf(id) !== -1;
 }
 
 export async function sha256(text) {
