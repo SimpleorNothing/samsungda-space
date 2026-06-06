@@ -370,7 +370,7 @@ export function roomPage(room, meta, authorized) {
         <div class="panel">
           <h2>블라인드 보이스</h2>
           <p class="desc">익명 공간입니다. 글은 모든 방의 블라인드 보이스에 공통으로 표시됩니다. 작성자 정보는 저장되지 않으며, 본인이 쓴 글은 이 브라우저에서만 삭제할 수 있습니다.</p>
-          <textarea id="bText" class="input" maxlength="500" placeholder="답답한 마음, 하고 싶은 말을 자유롭게 적어보세요 (최대 500자)"></textarea>
+          <textarea id="bText" class="input" maxlength="500" placeholder="오늘의 한마디, 하고 싶은 말을 자유롭게 적어보세요 (최대 500자)"></textarea>
           <div class="count" id="bCount">0 / 500</div>
           <div class="btn-row"><button id="bPost" disabled>익명으로 올리기</button></div>
           <div class="status-msg" id="msgBamboo"></div>
