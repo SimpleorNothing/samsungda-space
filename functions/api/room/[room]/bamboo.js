@@ -1,8 +1,9 @@
-// /api/room/:room/bamboo — 대나무숲 (방별 익명 게시)
+// /api/room/:room/bamboo — 대나무숲 (전 방 공통 익명 게시)
 //   GET    글 목록 (작성자 정보 없음)
 //   POST   { text } → { id, token } — 토큰은 본인 삭제용, 브라우저에만 보관
 //   DELETE { id, token } — 토큰 해시 일치 시에만 삭제 (익명성 유지)
-// 서버에는 글 내용·작성시각·토큰 해시만 저장하며 작성자 식별 정보는 일체 저장하지 않음.
+// 저장소는 전역 단일 피드(bamboo.json) — 어느 방에서 쓰든 모든 방의 대나무숲 탭에 표시됨.
+// 서버에는 글 내용·작성시각·토큰 해시만 저장하며 작성자·작성 방 식별 정보는 일체 저장하지 않음.
 import { isValidRoomId, roomExists, readIndex, isAuthorized, sha256, json } from '../../../_lib.js';
 
 const MAX_TEXT_CHARS = 500;
@@ -16,18 +17,17 @@ function newId() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 }
 
-function bambooKey(room) {
-  return 'rooms/' + room + '/bamboo.json';
-}
+// 전역 피드 — 방과 무관하게 단일 키
+const BAMBOO_KEY = 'bamboo.json';
 
-async function readPosts(env, room) {
-  const obj = await env.SPACE.get(bambooKey(room));
+async function readPosts(env) {
+  const obj = await env.SPACE.get(BAMBOO_KEY);
   if (!obj) return { posts: [] };
   try { return JSON.parse(await obj.text()); } catch (e) { return { posts: [] }; }
 }
 
-async function writePosts(env, room, data) {
-  await env.SPACE.put(bambooKey(room), JSON.stringify(data), {
+async function writePosts(env, data) {
+  await env.SPACE.put(BAMBOO_KEY, JSON.stringify(data), {
     httpMetadata: { contentType: 'application/json; charset=utf-8' },
   });
 }
@@ -47,7 +47,7 @@ async function guard(context) {
 export async function onRequestGet(context) {
   const g = await guard(context);
   if (g.fail) return g.fail;
-  const data = await readPosts(context.env, g.room);
+  const data = await readPosts(context.env);
   // 토큰 해시는 절대 내려보내지 않음
   const posts = (data.posts || []).map(function (p) {
     return { id: p.id, text: p.text, createdAt: p.createdAt };
@@ -58,8 +58,6 @@ export async function onRequestGet(context) {
 export async function onRequestPost(context) {
   const g = await guard(context);
   if (g.fail) return g.fail;
-  const room = g.room;
-
   let body;
   try { body = await context.request.json(); } catch (e) {
     return json({ error: 'invalid body' }, 400);
@@ -72,9 +70,9 @@ export async function onRequestPost(context) {
   const token = crypto.randomUUID().replace(/-/g, '');
   const post = { id: id, text: text, createdAt: nowKST(), tokenHash: await sha256(token) };
 
-  const data = await readPosts(context.env, room);
+  const data = await readPosts(context.env);
   data.posts = [post].concat(data.posts || []).slice(0, MAX_POSTS);
-  await writePosts(context.env, room, data);
+  await writePosts(context.env, data);
 
   return json({ ok: true, id: id, token: token, createdAt: post.createdAt });
 }
@@ -82,8 +80,6 @@ export async function onRequestPost(context) {
 export async function onRequestDelete(context) {
   const g = await guard(context);
   if (g.fail) return g.fail;
-  const room = g.room;
-
   let body;
   try { body = await context.request.json(); } catch (e) {
     return json({ error: 'invalid body' }, 400);
@@ -92,13 +88,13 @@ export async function onRequestDelete(context) {
   const token = typeof body.token === 'string' ? body.token : '';
   if (!id || !token) return json({ error: 'id/token required' }, 400);
 
-  const data = await readPosts(context.env, room);
+  const data = await readPosts(context.env);
   const posts = data.posts || [];
   const target = posts.find(function (p) { return p.id === id; });
   if (!target) return json({ error: 'not found' }, 404);
   if ((await sha256(token)) !== target.tokenHash) return json({ error: 'forbidden' }, 403);
 
   data.posts = posts.filter(function (p) { return p.id !== id; });
-  await writePosts(context.env, room, data);
+  await writePosts(context.env, data);
   return json({ ok: true });
 }

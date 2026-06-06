@@ -4,7 +4,7 @@
 // 방 페이지 구성 (3탭 워크스페이스):
 //   1) 메모·파일  — 메모 작성·파일 첨부 저장/공유   (/api/room/:room/notes, /file/:id)
 //   2) 웹페이지   — HTML 파일 업로드 또는 소스 입력 게시 (autoweb은 마크다운 에디터)
-//   3) 대나무숲   — 방별 익명 게시 공간              (/api/room/:room/bamboo)
+//   3) 대나무숲   — 전 방 공통 익명 게시 공간          (/api/room/:room/bamboo, 전역 피드)
 // 비밀번호가 설정된 방은 세 기능 모두 잠금.
 
 export const ROOMS = ['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'autoweb'];
@@ -272,7 +272,7 @@ export function roomPage(room, meta, authorized) {
       <div class="tabpanel" id="tab-bamboo">
         <div class="panel">
           <h2>대나무숲</h2>
-          <p class="desc">익명 공간입니다. 작성자 정보는 저장되지 않으며, 본인이 쓴 글은 이 브라우저에서만 삭제할 수 있습니다.</p>
+          <p class="desc">익명 공간입니다. 글은 모든 방의 대나무숲에 공통으로 표시됩니다. 작성자 정보는 저장되지 않으며, 본인이 쓴 글은 이 브라우저에서만 삭제할 수 있습니다.</p>
           <textarea id="bText" class="input" maxlength="500" placeholder="답답한 마음, 하고 싶은 말을 자유롭게 적어보세요 (최대 500자)"></textarea>
           <div class="count" id="bCount">0 / 500</div>
           <div class="btn-row"><button id="bPost" disabled>익명으로 올리기</button></div>
@@ -517,7 +517,7 @@ function notesSnippet() {
   loadNotes();`;
 }
 
-// 대나무숲 탭
+// 대나무숲 탭 (전 방 공통 피드 — 토큰도 전역 키로 보관)
 function bambooSnippet() {
   return `
   var msgBamboo = document.getElementById('msgBamboo');
@@ -525,7 +525,7 @@ function bambooSnippet() {
   var bText = document.getElementById('bText');
   var bCount = document.getElementById('bCount');
   var bPost = document.getElementById('bPost');
-  var TOK_KEY = 'bamboo_' + ROOM;
+  var TOK_KEY = 'bamboo_global';
 
   function tokens(){
     try { return JSON.parse(localStorage.getItem(TOK_KEY) || '{}'); } catch(e){ return {}; }
@@ -891,7 +891,7 @@ function lockedScript(room) {
       if(r.ok){ location.reload(); return; }
       setMsg(r.status === 401 ? '비밀번호가 올바르지 않습니다.' : '확인 실패 (HTTP ' + r.status + ')', true);
       enterBtn.disabled = false;
-    }).catch(function(e){ setMsg('확인 실패: ' + e.message, true); enterBtn.disabled = false; });
+    }).catch(function(e){ setMsg('확인 실패: ' + e.message, true); });
   }
   enterBtn.addEventListener('click', enter);
   pw.addEventListener('keydown', function(e){ if(e.key === 'Enter') enter(); });
