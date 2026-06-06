@@ -1,6 +1,8 @@
 // GET    /api/rooms — 전체 방 현황 (점유·공개여부·사용기한)
-// POST   /api/rooms — 새 빈방 생성 (이름 = URL)
-// DELETE /api/rooms — 방 관리: 시드 방은 데이터 비우기, 생성 방은 방 자체 삭제
+// POST   /api/rooms — 새 빈방 생성 (이름 = URL). 삭제된 시드 방과 같은 이름이면 그 방을 복구.
+// DELETE /api/rooms — 방 관리. body { id, mode }
+//                     mode 'clear'  → 데이터만 비우고 방은 유지
+//                     mode 'delete' → 데이터 삭제 + 방을 목록에서 제거 (시드 방은 index.removed에 기록)
 //                     비공개 방은 x-room-password 헤더 또는 인증 쿠키 필요
 import {
   ROOMS, allRooms, isValidRoomId, roomExists, readIndex, writeIndex,
@@ -48,7 +50,12 @@ export async function onRequestPost(context) {
   if (!Array.isArray(index.created)) index.created = [];
   if (roomExists(index, id)) return json({ error: 'exists' }, 409);
 
-  index.created.push(id);
+  if (Array.isArray(index.removed) && index.removed.indexOf(id) !== -1) {
+    // 삭제됐던 시드 방 복구 — removed에서만 빼면 ROOMS로 다시 노출됨
+    index.removed = index.removed.filter(function (x) { return x !== id; });
+  } else {
+    index.created.push(id);
+  }
   await writeIndex(context.env, index);
   return json({ ok: true, id: id }, 201);
 }
@@ -59,6 +66,7 @@ export async function onRequestDelete(context) {
 
   const id = typeof body.id === 'string' ? body.id.trim() : '';
   if (!isValidRoomId(id)) return json({ error: 'invalid name' }, 400);
+  const mode = body.mode === 'clear' ? 'clear' : 'delete';
 
   const index = await readIndex(context.env);
   if (!roomExists(index, id)) return json({ error: 'unknown room' }, 404);
@@ -81,11 +89,15 @@ export async function onRequestDelete(context) {
 
   delete index.rooms[id];
   const seed = ROOMS.indexOf(id) !== -1;
-  if (!seed && Array.isArray(index.created)) {
-    index.created = index.created.filter(function (x) { return x !== id; });
+  if (mode === 'delete') {
+    if (seed) {
+      if (!Array.isArray(index.removed)) index.removed = [];
+      if (index.removed.indexOf(id) === -1) index.removed.push(id);
+    } else if (Array.isArray(index.created)) {
+      index.created = index.created.filter(function (x) { return x !== id; });
+    }
   }
   await writeIndex(context.env, index);
 
-  // seed면 비우기(방 유지), 아니면 방 자체 삭제
-  return json({ ok: true, removed: !seed });
+  return json({ ok: true, removed: mode === 'delete' });
 }
