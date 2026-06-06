@@ -39,7 +39,7 @@ function gatePage(error, next) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DA Space · 공동 현관</title>
+<title>My Space · 공동 현관</title>
 ${FONT_LINK}
 <style>${BASE_CSS}</style>
 </head>
@@ -47,7 +47,7 @@ ${FONT_LINK}
 <div class="wrap">
   <section>
     <div class="section-head">
-      <h1>DA Space</h1>
+      <h1>My Space</h1>
       <p class="sub">공동 현관 비밀번호를 입력하세요. (개별 방 비밀번호와 다릅니다)</p>
     </div>
     <form class="panel" method="POST" action="${SUBMIT_PATH}">
