@@ -7,10 +7,11 @@
 //   3) 블라인드 보이스 — 전 방 공통 익명 게시 공간    (/api/room/:room/bamboo, 전역 피드)
 //
 // 방 meta 모델 (index.json → rooms[id]):
-//   { published, title, updatedAt, passwordHash, expiresAt }
+//   { published, title, updatedAt, passwordHash, expiresAt, color }
 //   - published: 웹페이지 게시 여부 (레거시 meta는 readIndex에서 true로 정규화)
 //   - passwordHash: 비공개 방 열람 비밀번호 — 설정 시 세 기능 모두 잠금
 //   - expiresAt: 사용기한 (YYYY-MM-DD, 표시용 — 자동 삭제는 하지 않음)
+//   - color: 방 테마 색 (#rrggbb) — 방 페이지 액센트(--brand)와 로비 카드 닷에 적용
 // 방 점유(사용중) 판정 = published 또는 notes.json 존재 (api/rooms.js 참조)
 
 export const ROOMS = ['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'autoweb'];
@@ -80,7 +81,7 @@ export async function readIndex(env) {
 
 // 게시도, 비밀번호도, 사용기한도 없는 meta는 인덱스에서 제거해도 됨
 export function metaIsEmpty(meta) {
-  return !meta || (!meta.published && !meta.passwordHash && !meta.expiresAt);
+  return !meta || (!meta.published && !meta.passwordHash && !meta.expiresAt && !meta.color);
 }
 
 // KST 오늘 날짜 (YYYY-MM-DD)
@@ -219,6 +220,11 @@ button.mini{font-size:12px;padding:4px 10px;margin-left:auto}
 .badge.open{background:#eef1f5;color:var(--muted)}
 .badge.lock{background:#fdecea;color:#c0392b}
 .hint{font-weight:400;color:var(--muted)}
+.swatches{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.swatches button{width:28px;height:28px;border-radius:50%;padding:0;border:2px solid #fff;
+  box-shadow:0 0 0 1.5px var(--border);transition:.15s;}
+.swatches button:hover{box-shadow:0 0 0 2.5px var(--brand);border-color:#fff;color:inherit}
+.swatches button.sel{box-shadow:0 0 0 2.5px var(--text)}
 `;
 
 // 마크다운 본문 타이포그래피 — 미리보기(.preview)와 게시 문서가 공유
@@ -246,9 +252,19 @@ export const MD_CSS = `
 const FONT_LINK = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">`;
 const MARKED_LINK = `<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>`;
 
+// 방 테마 색 팔레트 — 첫 번째(브랜드 블루)가 기본값(미설정)
+const COLORS = [
+  ['#1257d6', '블루 (기본)'],
+  ['#0f9d58', '그린'],
+  ['#7c3aed', '퍼플'],
+  ['#ea8600', '오렌지'],
+  ['#d93025', '레드'],
+  ['#00838f', '틸'],
+];
+
 // ---------- 방 페이지 ----------
 // 잠김: 비밀번호 게이트 / 그 외: 3탭 워크스페이스 (메모·파일 / 웹페이지 / 블라인드 보이스)
-// 헤더 우측: 공개/비공개 배지 + 방 설정(공개 범위·사용기한) 버튼
+// 헤더 우측: 공개/비공개 배지 + 방 설정(공개 범위·사용기한·테마 색) 버튼
 
 export function roomPage(room, meta, authorized) {
   const used = !!(meta && meta.published);
@@ -258,6 +274,7 @@ export function roomPage(room, meta, authorized) {
   const title = used ? escapeHtml(meta.title || '(제목 없음)') : '';
   const updated = used ? escapeHtml(String(meta.updatedAt || '').slice(0, 10)) : '';
   const exp = (meta && meta.expiresAt) ? escapeHtml(meta.expiresAt) : '';
+  const color = (meta && meta.color && /^#[0-9a-f]{6}$/i.test(meta.color)) ? meta.color : '';
   const expired = exp && exp < todayKST();
   const expLine = exp ? ' · 사용기한 ~' + exp + (expired ? ' (만료)' : '') : '';
 
@@ -305,6 +322,13 @@ export function roomPage(room, meta, authorized) {
           <div class="field" id="setExpField" style="display:${exp ? '' : 'none'}">
             <input id="setExp" type="date" value="${exp}">
           </div>
+        </div>
+        <div class="field">
+          <label>테마 색 <span class="hint">(방 화면과 방 목록에 적용)</span></label>
+          <div class="swatches" id="colorSel">${COLORS.map(function (c) {
+            const sel = (color || '#1257d6') === c[0] ? ' class="sel"' : '';
+            return '<button type="button" data-color="' + (c[0] === '#1257d6' ? '' : c[0]) + '" style="background:' + c[0] + '" title="' + c[1] + '"' + sel + '></button>';
+          }).join('')}</div>
         </div>
         <div class="btn-row">
           <button id="setSave">저장</button>
@@ -364,7 +388,7 @@ export function roomPage(room, meta, authorized) {
 <title>${room} · DA Space</title>
 ${FONT_LINK}
 ${editor && !locked ? MARKED_LINK : ''}
-<style>${BASE_CSS}${editor && !locked ? MD_CSS : ''}</style>
+<style>${BASE_CSS}${color ? ':root{--brand:' + color + ';}' : ''}${editor && !locked ? MD_CSS : ''}</style>
 </head>
 <body>
 <div class="wrap">
@@ -890,8 +914,8 @@ function webSnippet(room, meta, editor, used) {
   });`;
 }
 
-// 방 설정 패널 (공개/비공개 전환 + 사용기한 프리셋)
-function settingsSnippet(priv, exp) {
+// 방 설정 패널 (공개/비공개 전환 + 사용기한 프리셋 + 테마 색)
+function settingsSnippet(priv, exp, color) {
   return `
   var IS_PRIVATE = ${priv ? 'true' : 'false'};
   var setPanel = document.getElementById('setPanel');
@@ -901,6 +925,8 @@ function settingsSnippet(priv, exp) {
   var setExpField = document.getElementById('setExpField');
   var expBtns = document.querySelectorAll('#expSel button');
   var expMode = ${exp ? "'pick'" : "'none'"};
+  var colorBtns = document.querySelectorAll('#colorSel button');
+  var colorSel = ${JSON.stringify(color)};
 
   document.getElementById('setBtn').addEventListener('click', function(){
     setPanel.style.display = setPanel.style.display === 'none' ? '' : 'none';
@@ -925,6 +951,14 @@ function settingsSnippet(priv, exp) {
       expBtns.forEach(function(x){ x.className = x === b ? 'active' : ''; });
       setExpField.style.display = expMode === 'pick' ? '' : 'none';
       flash(msgSet, '');
+    });
+  });
+
+  // 테마 색 선택
+  colorBtns.forEach(function(b){
+    b.addEventListener('click', function(){
+      colorSel = b.getAttribute('data-color');
+      colorBtns.forEach(function(x){ x.className = x === b ? 'sel' : ''; });
     });
   });
 
@@ -955,7 +989,7 @@ function settingsSnippet(priv, exp) {
     fetch('/api/room/' + ROOM + '/settings', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ visibility: vis, password: setPw.value, expiresAt: expiresAt })
+      body: JSON.stringify({ visibility: vis, password: setPw.value, expiresAt: expiresAt, color: colorSel || null })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
       flash(msgSet, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '저장 실패 (HTTP ' + r.status + ')', true);
@@ -987,7 +1021,7 @@ function workspaceScript(room, meta, editor, used, priv) {
   showTab('${used ? 'web' : 'notes'}');
 
   // ---- 방 설정 ----
-  ${settingsSnippet(priv, (meta && meta.expiresAt) ? meta.expiresAt : '')}
+  ${settingsSnippet(priv, (meta && meta.expiresAt) ? meta.expiresAt : '', (meta && meta.color) ? meta.color : '')}
 
   // ---- 메모·파일 ----
   ${notesSnippet()}
