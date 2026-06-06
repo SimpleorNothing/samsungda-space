@@ -43,6 +43,12 @@ section{margin-bottom:40px}
   color:inherit;
 }
 .card:hover{border-color:var(--brand);box-shadow:0 4px 18px rgba(18,87,214,.10)}
+/* 테마 색 설정된 방 — 카드 전체에 해당 색 틴트 (카드별 --c 변수) */
+.card.tinted{background:color-mix(in srgb, var(--c) 6%, #fff);border-color:color-mix(in srgb, var(--c) 30%, #fff)}
+.card.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
+.card.tinted h3{color:var(--c)}
+.card.tinted .badge.used{background:color-mix(in srgb, var(--c) 10%, #fff);color:var(--c)}
+.card.tinted .updated,.card.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card h3{font-size:17px;font-weight:700;display:flex;align-items:center}
 .card h3 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px;flex:none}
 .card h3::after{content:"→";margin-left:auto;font-size:14px;opacity:.4}
@@ -151,13 +157,19 @@ section{margin-bottom:40px}
       card.className = 'card';
       card.href = '/' + encodeURIComponent(r.id);
 
+      var color = (r.color && /^#[0-9a-f]{6}$/i.test(r.color)) ? r.color : '';
+      if(color){
+        card.classList.add('tinted');
+        card.style.setProperty('--c', color);
+      }
+
       var badges = '<div class="badges">'
         + (r.used ? '<span class="badge used">사용중</span>' : '<span class="badge free">빈방</span>')
         + (r.locked ? '<span class="badge lock">비공개</span>' : '<span class="badge open">공개</span>')
         + expBadge(r)
         + '</div>';
 
-      var dot = r.color ? '<span class="dot" style="background:' + esc(r.color) + '"></span>' : '';
+      var dot = color ? '<span class="dot" style="background:' + color + '"></span>' : '';
       var html = '<h3>' + dot + esc(r.id) + '</h3>'
         + '<p>' + descLine(r) + '</p>'
         + badges
