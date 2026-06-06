@@ -107,6 +107,11 @@ export async function onRequestDelete(context) {
     await context.env.SPACE.delete('rooms/' + room + '/files/' + f.id);
   }
   data.items = items.filter(function (n) { return n.id !== id; });
-  await writeNotes(context.env, room, data);
+  if (data.items.length === 0) {
+    // 빈 notes.json은 삭제 — 'notes.json 존재 = 메모 있음'으로 점유 판정에 사용됨
+    await context.env.SPACE.delete(notesKey(room));
+  } else {
+    await writeNotes(context.env, room, data);
+  }
   return json({ ok: true });
 }

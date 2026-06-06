@@ -1,8 +1,9 @@
-// /api/room/:room — POST 업로드, PUT 교체, DELETE 삭제
-// 비밀번호 설정된 방의 PUT/DELETE는 인증 쿠키 또는 x-room-password 헤더 필요.
+// /api/room/:room — 웹페이지 게시(POST)·교체(PUT)·삭제(DELETE)
+// 비공개 방은 인증 쿠키 또는 x-room-password 헤더 필요.
+// 비밀번호·사용기한 설정은 /api/room/:room/settings 로 분리됨 — 여기서는 다루지 않음.
 import {
-  isValidRoomId, roomExists, readIndex, writeIndex, sha256,
-  isAuthorized, authCookieHeader, json,
+  isValidRoomId, roomExists, readIndex, writeIndex,
+  isAuthorized, metaIsEmpty, json,
 } from '../../../_lib.js';
 
 const MAX_HTML_BYTES = 5 * 1024 * 1024; // 5MB
@@ -36,7 +37,7 @@ async function putSource(env, room, body) {
   }
 }
 
-// 업로드 — 빈방에만 허용. 비밀번호 설정 시 업로더에게 인증 쿠키 즉시 발급.
+// 게시 — 게시되지 않은 방에만 허용. 방의 비공개·사용기한 설정은 유지됨.
 export async function onRequestPost(context) {
   const room = context.params.room;
   if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
@@ -46,35 +47,33 @@ export async function onRequestPost(context) {
 
   const index = await readIndex(context.env);
   if (!roomExists(index, room)) return json({ error: 'unknown room' }, 404);
-  if (index.rooms[room]) return json({ error: 'occupied' }, 409);
 
-  const password = typeof body.password === 'string' ? body.password : '';
-  const passwordHash = password ? await sha256(password) : null;
+  const meta = index.rooms[room] || null;
+  if (meta && meta.published) return json({ error: 'occupied' }, 409);
+  if (!(await isAuthorized(context.request, room, meta))) return json({ error: 'unauthorized' }, 401);
 
   await context.env.SPACE.put('rooms/' + room + '/page.html', body.html, {
     httpMetadata: { contentType: 'text/html; charset=utf-8' },
   });
   await putSource(context.env, room, body);
 
-  index.rooms[room] = {
-    title: (body.title || '').slice(0, 60),
-    updatedAt: nowKST(),
-    passwordHash: passwordHash,
-  };
+  const next = meta || { passwordHash: null, expiresAt: null };
+  next.published = true;
+  next.title = (body.title || '').slice(0, 60);
+  next.updatedAt = nowKST();
+  index.rooms[room] = next;
   await writeIndex(context.env, index);
-
-  const headers = passwordHash ? { 'set-cookie': authCookieHeader(room, passwordHash) } : null;
-  return json({ ok: true }, 200, headers);
+  return json({ ok: true });
 }
 
-// 교체 — 사용중인 방, 인증 필요
+// 교체 — 게시중인 방, 인증 필요
 export async function onRequestPut(context) {
   const room = context.params.room;
   if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
 
   const index = await readIndex(context.env);
   const meta = index.rooms[room];
-  if (!meta) return json({ error: 'empty room' }, 404);
+  if (!meta || !meta.published) return json({ error: 'not published' }, 404);
   if (!(await isAuthorized(context.request, room, meta))) return json({ error: 'unauthorized' }, 401);
 
   const body = await parseBody(context.request);
@@ -91,19 +90,27 @@ export async function onRequestPut(context) {
   return json({ ok: true });
 }
 
-// 삭제 — 사용중인 방, 인증 필요
+// 웹페이지 삭제 — 게시 해제. 비공개·사용기한 설정과 메모·대나무숲은 유지.
 export async function onRequestDelete(context) {
   const room = context.params.room;
   if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
 
   const index = await readIndex(context.env);
   const meta = index.rooms[room];
-  if (!meta) return json({ error: 'empty room' }, 404);
+  if (!meta || !meta.published) return json({ error: 'not published' }, 404);
   if (!(await isAuthorized(context.request, room, meta))) return json({ error: 'unauthorized' }, 401);
 
   await context.env.SPACE.delete('rooms/' + room + '/page.html');
   await context.env.SPACE.delete('rooms/' + room + '/source.md');
-  delete index.rooms[room];
+
+  meta.published = false;
+  delete meta.title;
+  delete meta.updatedAt;
+  if (metaIsEmpty(meta)) {
+    delete index.rooms[room];
+  } else {
+    index.rooms[room] = meta;
+  }
   await writeIndex(context.env, index);
   return json({ ok: true });
 }
