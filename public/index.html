@@ -77,6 +77,57 @@ section{margin-bottom:40px}
   padding:5px 12px;cursor:pointer;transition:.15s;
 }
 .mgr button:hover{background:#ffe1e1;color:#c0392b;border-color:#ffe1e1}
+
+/* ───── 불 꺼짐/켜짐 상태 (빈방=off · 사용중=on) ─────
+   .tinted보다 뒤에 선언해 상태가 틴트를 덮어쓰되,
+   사용중+테마색은 그 방의 색으로 불이 켜지도록 color-mix 처리 */
+
+/* 빈방 — 불 꺼진 방 (채도 제거 + 한 단계 어둡게) */
+.card.off{background:#eceef1;border-color:#e0e3e8}
+.card.off h3{color:#9aa1ab}
+.card.off h3::after{opacity:.3}
+.card.off p{color:#aab0b9}
+.card.off .badge.free,
+.card.off .badge.open,
+.card.off .badge.exp{background:#e2e5ea;color:#9aa1ab}
+.card.off .updated,.card.off .mgr{border-color:#dfe2e7}
+.card.off:hover{border-color:#c8cdd5;box-shadow:0 4px 18px rgba(90,100,115,.10)}
+.card.off:hover h3::after{opacity:.55}
+
+/* 사용중 — 불 켜진 방 (위에서 퍼지는 크림 글로우) */
+.card.on{
+  background:radial-gradient(120% 90% at 50% 0%,
+    rgba(255,214,120,.35) 0%,
+    rgba(255,244,214,.55) 38%,
+    #fffdf6 75%);
+  border-color:#f2dfae;
+  box-shadow:0 4px 22px rgba(255,176,46,.16);
+}
+.card.on h3{color:#8a5b00}
+.card.on .badge.used{background:#ffedc2;color:#a06b00}
+.card.on .updated{border-color:#f0e3bd}
+.card.on .mgr{border-color:#f0e3bd}
+.card.on:hover{border-color:#e9c463;box-shadow:0 6px 26px rgba(255,176,46,.24)}
+
+/* 사용중 + 테마색 — 그 방의 색으로 불이 켜짐 */
+.card.on.tinted{
+  background:radial-gradient(120% 90% at 50% 0%,
+    color-mix(in srgb, var(--c) 22%, #fff) 0%,
+    color-mix(in srgb, var(--c) 10%, #fff) 38%,
+    color-mix(in srgb, var(--c) 3%, #fff) 75%);
+  border-color:color-mix(in srgb, var(--c) 35%, #fff);
+  box-shadow:0 4px 22px color-mix(in srgb, var(--c) 18%, transparent);
+}
+.card.on.tinted h3{color:var(--c)}
+.card.on.tinted .badge.used{background:color-mix(in srgb, var(--c) 12%, #fff);color:var(--c)}
+.card.on.tinted .updated,.card.on.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
+.card.on.tinted:hover{border-color:var(--c);box-shadow:0 6px 26px color-mix(in srgb, var(--c) 26%, transparent)}
+
+/* 빈방 + 테마색 — 불 꺼진 상태 유지, 점 색만 남김 */
+.card.off.tinted{background:#eceef1;border-color:#e0e3e8}
+.card.off.tinted h3{color:#9aa1ab}
+.card.off.tinted:hover{border-color:#c8cdd5;box-shadow:0 4px 18px rgba(90,100,115,.10)}
+
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -154,7 +205,7 @@ section{margin-bottom:40px}
     grid.innerHTML = '';
     roomsCache.forEach(function (r) {
       var card = document.createElement('a');
-      card.className = 'card';
+      card.className = 'card ' + (r.used ? 'on' : 'off');
       card.href = '/' + encodeURIComponent(r.id);
 
       var color = (r.color && /^#[0-9a-f]{6}$/i.test(r.color)) ? r.color : '';
