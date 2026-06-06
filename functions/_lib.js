@@ -200,7 +200,7 @@ textarea.input:focus{border-color:var(--brand)}
 .tabbar button.active{color:var(--brand);border-bottom-color:var(--brand)}
 .tabpanel{display:none}
 .tabpanel.active{display:block}
-.subtabs{display:flex;gap:8px;margin-top:16px}
+.subtabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .subtabs button.active{border-color:var(--brand);color:var(--brand);background:rgba(18,87,214,.06)}
 .note{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:18px 20px;margin-top:12px}
 .note h3{font-size:15px;font-weight:700}
@@ -294,8 +294,17 @@ export function roomPage(room, meta, authorized) {
           <input id="setPw" type="password" autocomplete="new-password">
         </div>
         <div class="field">
-          <label for="setExp">사용기한 <span class="hint">(선택 — 방 목록에 표시, 비우면 해제)</span></label>
-          <input id="setExp" type="date" value="${exp}">
+          <label>사용기한 <span class="hint">(방 목록에 표시)</span></label>
+          <div class="subtabs" id="expSel">
+            <button type="button" data-exp="none"${exp ? '' : ' class="active"'}>기한 없음</button>
+            <button type="button" data-exp="1d">1일</button>
+            <button type="button" data-exp="1w">1주일</button>
+            <button type="button" data-exp="1m">1개월</button>
+            <button type="button" data-exp="pick"${exp ? ' class="active"' : ''}>기한 선택 (달력)</button>
+          </div>
+          <div class="field" id="setExpField" style="display:${exp ? '' : 'none'}">
+            <input id="setExp" type="date" value="${exp}">
+          </div>
         </div>
         <div class="btn-row">
           <button id="setSave">저장</button>
@@ -881,14 +890,17 @@ function webSnippet(room, meta, editor, used) {
   });`;
 }
 
-// 방 설정 패널 (공개/비공개 전환 + 사용기한)
-function settingsSnippet(priv) {
+// 방 설정 패널 (공개/비공개 전환 + 사용기한 프리셋)
+function settingsSnippet(priv, exp) {
   return `
   var IS_PRIVATE = ${priv ? 'true' : 'false'};
   var setPanel = document.getElementById('setPanel');
   var msgSet = document.getElementById('msgSet');
   var setPw = document.getElementById('setPw');
   var setExp = document.getElementById('setExp');
+  var setExpField = document.getElementById('setExpField');
+  var expBtns = document.querySelectorAll('#expSel button');
+  var expMode = ${exp ? "'pick'" : "'none'"};
 
   document.getElementById('setBtn').addEventListener('click', function(){
     setPanel.style.display = setPanel.style.display === 'none' ? '' : 'none';
@@ -906,17 +918,44 @@ function settingsSnippet(priv) {
     r.addEventListener('change', syncPwField);
   });
 
+  // 사용기한 프리셋 선택 — 1일/1주일/1개월은 저장 시 KST 기준으로 날짜 계산
+  expBtns.forEach(function(b){
+    b.addEventListener('click', function(){
+      expMode = b.getAttribute('data-exp');
+      expBtns.forEach(function(x){ x.className = x === b ? 'active' : ''; });
+      setExpField.style.display = expMode === 'pick' ? '' : 'none';
+      flash(msgSet, '');
+    });
+  });
+
+  function expPreset(kind){
+    var p = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 10).split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    if(kind === '1d') d.setDate(d.getDate() + 1);
+    else if(kind === '1w') d.setDate(d.getDate() + 7);
+    else if(kind === '1m') d.setMonth(d.getMonth() + 1);
+    function z(n){ return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate());
+  }
+
   document.getElementById('setSave').addEventListener('click', function(){
     var vis = document.querySelector('input[name="vis"]:checked').value;
     if(vis === 'private' && !IS_PRIVATE && !setPw.value){
       flash(msgSet, '비공개로 바꾸려면 비밀번호를 입력하세요.', true);
       return;
     }
+    var expiresAt = null;
+    if(expMode === 'pick'){
+      if(!setExp.value){ flash(msgSet, '달력에서 날짜를 선택하세요.', true); return; }
+      expiresAt = setExp.value;
+    } else if(expMode !== 'none'){
+      expiresAt = expPreset(expMode);
+    }
     flash(msgSet, '저장 중…');
     fetch('/api/room/' + ROOM + '/settings', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ visibility: vis, password: setPw.value, expiresAt: setExp.value || null })
+      body: JSON.stringify({ visibility: vis, password: setPw.value, expiresAt: expiresAt })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
       flash(msgSet, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '저장 실패 (HTTP ' + r.status + ')', true);
@@ -948,7 +987,7 @@ function workspaceScript(room, meta, editor, used, priv) {
   showTab('${used ? 'web' : 'notes'}');
 
   // ---- 방 설정 ----
-  ${settingsSnippet(priv)}
+  ${settingsSnippet(priv, (meta && meta.expiresAt) ? meta.expiresAt : '')}
 
   // ---- 메모·파일 ----
   ${notesSnippet()}
