@@ -165,25 +165,27 @@ section{margin-bottom:40px}
       if(manage){
         var mgr = document.createElement('div');
         mgr.className = 'mgr';
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.textContent = r.seed ? '비우기' : '방 삭제';
-        btn.addEventListener('click', function(e){
-          e.preventDefault();
-          e.stopPropagation();
-          destroyRoom(r);
+        [['비우기', 'clear'], ['방 삭제', 'delete']].forEach(function(def){
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = def[0];
+          btn.addEventListener('click', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            destroyRoom(r, def[1]);
+          });
+          mgr.appendChild(btn);
         });
-        mgr.appendChild(btn);
         card.appendChild(mgr);
       }
       grid.appendChild(card);
     });
   }
 
-  function destroyRoom(r){
-    var q = r.seed
+  function destroyRoom(r, mode){
+    var q = mode === 'clear'
       ? "'" + r.id + "' 방의 모든 데이터(메모·파일, 게시된 웹페이지, 설정)를 비울까요? 방 자체는 유지됩니다."
-      : "'" + r.id + "' 방을 삭제할까요? 모든 데이터가 함께 삭제됩니다.";
+      : "'" + r.id + "' 방을 삭제할까요? 모든 데이터가 삭제되고 방 목록에서 사라집니다.\n(같은 이름으로 빈방을 다시 추가하면 방이 복구됩니다)";
     if(!window.confirm(q)) return;
 
     var headers = { 'content-type': 'application/json' };
@@ -197,7 +199,7 @@ section{margin-bottom:40px}
     fetch('/api/rooms', {
       method: 'DELETE',
       headers: headers,
-      body: JSON.stringify({ id: r.id })
+      body: JSON.stringify({ id: r.id, mode: mode })
     }).then(function(res){
       if(res.ok){ loadRooms(); return; }
       msg.className = 'status-msg err';

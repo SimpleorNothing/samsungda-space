@@ -29,12 +29,17 @@ export function isValidRoomId(raw) {
 }
 
 // 시드 방(ROOMS) + 동적 생성 방(index.created) 합본 목록 (중복 제거, 순서 유지)
+// index.removed에 있는 시드 방은 삭제된 것으로 보고 목록에서 제외
+// (같은 이름으로 빈방을 다시 추가하면 removed에서 빠지며 복구됨)
 export function allRooms(index) {
   const created = (index && Array.isArray(index.created)) ? index.created : [];
+  const removed = (index && Array.isArray(index.removed)) ? index.removed : [];
   const seen = Object.create(null);
   const list = [];
   ROOMS.concat(created).forEach(function (id) {
-    if (!seen[id]) { seen[id] = true; list.push(id); }
+    if (seen[id] || removed.indexOf(id) !== -1) return;
+    seen[id] = true;
+    list.push(id);
   });
   return list;
 }
