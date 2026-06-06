@@ -1,4 +1,4 @@
-// GET    /api/rooms — 전체 방 현황 (점유·공개여부·사용기한)
+// GET    /api/rooms — 전체 방 현황 (점유·공개여부·사용기한·테마 색)
 // POST   /api/rooms — 새 빈방 생성 (이름 = URL). 삭제된 시드 방과 같은 이름이면 그 방을 복구.
 // DELETE /api/rooms — 방 관리. body { id, mode }
 //                     mode 'clear'  → 데이터만 비우고 방은 유지
@@ -31,6 +31,7 @@ export async function onRequestGet(context) {
       title: published ? (meta.title || '') : '',
       updated: published ? String(meta.updatedAt || '').slice(0, 10) : '',
       locked: !!(meta && meta.passwordHash),
+      color: (meta && meta.color) || null,
       expiresAt: expiresAt,
       expired: !!(expiresAt && expiresAt < today),
       seed: ROOMS.indexOf(id) !== -1,
@@ -77,7 +78,7 @@ export async function onRequestDelete(context) {
   }
 
   // 방 데이터 전체 삭제 (rooms/{id}/ 하위 — page.html, source.md, notes.json, files/*)
-  // 대나무숲은 전역 피드(bamboo.json)라 영향 없음
+  // 블라인드 보이스는 전역 피드(bamboo.json)라 영향 없음
   let cursor;
   do {
     const list = await context.env.SPACE.list({ prefix: 'rooms/' + id + '/', cursor: cursor });
