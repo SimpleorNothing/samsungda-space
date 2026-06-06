@@ -252,16 +252,16 @@ export const MD_CSS = `
 const FONT_LINK = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">`;
 const MARKED_LINK = `<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>`;
 
-// 방 테마 색 팔레트 — 팬톤 컬러에서 선택 (미설정 시 기본 브랜드 블루 유지)
+// 방 테마 색 팔레트 — 선명한 모던 톤 (미설정 시 기본 브랜드 블루 유지)
 const COLORS = [
-  ['#efeee6', 'PANTONE 11-4201 Cloud Dancer'],
-  ['#c7d4c3', 'PANTONE 12-6000 Veiled Vista'],
-  ['#6ca3c7', 'PANTONE 14-4320 Baltic Sea'],
-  ['#cbbe6b', 'PANTONE 13-0624 Golden Mist'],
-  ['#a595bb', 'PANTONE 16-3610 Quiet Violet'],
-  ['#ab9e93', 'PANTONE 16-1523 Cloud Cover'],
-  ['#6d6e69', 'PANTONE 17-5800 Hematite'],
-  ['#5b7c8b', 'PANTONE 18-4218 Blue Fusion'],
+  ['#2563eb', '블루'],
+  ['#16a34a', '그린'],
+  ['#9333ea', '퍼플'],
+  ['#f59e0b', '앰버'],
+  ['#e11d48', '로즈'],
+  ['#0891b2', '시안'],
+  ['#db2777', '핑크'],
+  ['#ea580c', '오렌지'],
 ];
 
 // ---------- 방 페이지 ----------
@@ -326,7 +326,7 @@ export function roomPage(room, meta, authorized) {
           </div>
         </div>
         <div class="field">
-          <label>테마 색 <span class="hint">(팬톤 컬러에서 선택 · 방 화면과 방 목록에 적용)</span></label>
+          <label>테마 색 <span class="hint">(방 화면과 방 목록에 적용)</span></label>
           <div class="swatches" id="colorSel">${COLORS.map(function (c) {
             const sel = color === c[0] ? ' class="sel"' : '';
             return '<button type="button" data-color="' + c[0] + '" style="background:' + c[0] + '" title="' + c[1] + '"' + sel + '></button>';
