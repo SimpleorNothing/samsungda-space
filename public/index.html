@@ -47,30 +47,45 @@ section{margin-bottom:40px}
 .card h3::after{content:"→";margin-left:auto;font-size:14px;opacity:.4}
 .card p{font-size:13px;color:var(--muted);line-height:1.65;margin-top:8px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .badge{
   display:inline-block;font-size:12px;font-weight:600;
-  padding:3px 9px;border-radius:7px;margin-top:12px;
+  padding:3px 9px;border-radius:7px;
 }
 .badge.free{background:#eef1f5;color:var(--muted)}
 .badge.used{background:rgba(18,87,214,.08);color:var(--brand)}
+.badge.open{background:#eef1f5;color:var(--muted)}
+.badge.lock{background:#fdecea;color:#c0392b}
+.badge.exp{background:#eef1f5;color:var(--muted)}
+.badge.expired{background:#fdecea;color:#c0392b}
 .updated{
   font-size:13px;color:var(--muted);
   border-top:1px solid var(--border);
   margin-top:14px;padding-top:10px;
 }
+.mgr{display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.mgr button{
+  font-family:inherit;font-size:12px;font-weight:600;
+  border:1.5px solid var(--border);border-radius:7px;background:#fff;color:var(--text);
+  padding:5px 12px;cursor:pointer;transition:.15s;
+}
+.mgr button:hover{background:#ffe1e1;color:#c0392b;border-color:#ffe1e1}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.head-btns{display:flex;gap:8px;flex:none}
 .addbtn{font-family:inherit;font-size:13px;font-weight:600;
   border:1.5px solid var(--border);border-radius:7px;background:#eef1f5;color:var(--text);
-  padding:9px 16px;cursor:pointer;transition:.15s;white-space:nowrap;flex:none}
+  padding:9px 16px;cursor:pointer;transition:.15s;white-space:nowrap}
 .addbtn:hover{border-color:var(--brand);color:var(--brand)}
 .addbtn:disabled{opacity:.5;cursor:default}
+.addbtn.on{border-color:var(--brand);color:var(--brand);background:rgba(18,87,214,.06)}
 @media (max-width:600px){
   body{padding:32px 16px}
   h1{font-size:25px}
   .head-row{flex-wrap:wrap}
-  .addbtn{width:100%}
+  .head-btns{width:100%}
+  .head-btns .addbtn{flex:1}
 }
 </style>
 </head>
@@ -80,7 +95,7 @@ section{margin-bottom:40px}
   <section>
     <div class="section-head">
       <h1>My Space</h1>
-      <p class="sub">누구나 자신의 HTML을 빈방에 올려 공유하는 공간입니다.</p>
+      <p class="sub">부서원 누구나 쓰는 공유 작업 공간입니다. 방마다 메모·파일 공유, 웹페이지 게시, 익명 대나무숲을 사용할 수 있습니다.</p>
     </div>
   </section>
 
@@ -90,7 +105,10 @@ section{margin-bottom:40px}
         <h2>방 목록</h2>
         <p class="desc">space.samsungda.net/A-1 형식으로 각 방에 바로 접속할 수 있습니다.</p>
       </div>
-      <button class="addbtn" id="addRoomBtn" type="button">+ 빈방 추가</button>
+      <div class="head-btns">
+        <button class="addbtn" id="mgrBtn" type="button">관리</button>
+        <button class="addbtn" id="addRoomBtn" type="button">+ 빈방 추가</button>
+      </div>
     </div>
     <div class="grid" id="roomGrid"></div>
     <p class="status-msg" id="msg">불러오는 중…</p>
@@ -102,6 +120,10 @@ section{margin-bottom:40px}
 (function(){
   var grid = document.getElementById('roomGrid');
   var msg = document.getElementById('msg');
+  var mgrBtn = document.getElementById('mgrBtn');
+  var addBtn = document.getElementById('addRoomBtn');
+  var roomsCache = [];
+  var manage = false;
 
   function esc(s){
     return String(s || '').replace(/[&<>"']/g, function(c){
@@ -109,39 +131,108 @@ section{margin-bottom:40px}
     });
   }
 
-  function render(rooms){
+  function expBadge(r){
+    if(!r.expiresAt) return '';
+    if(r.expired) return '<span class="badge expired">기한 만료</span>';
+    return '<span class="badge exp">~' + esc(r.expiresAt.slice(5)) + '</span>';
+  }
+
+  function descLine(r){
+    if(r.published) return esc(r.title || '(제목 없음)');
+    if(r.used) return '메모·파일이 저장되어 있습니다.';
+    return '비어 있는 방입니다. 들어가서 바로 사용해보세요.';
+  }
+
+  function render(){
     grid.innerHTML = '';
-    rooms.forEach(function (r) {
+    roomsCache.forEach(function (r) {
       var card = document.createElement('a');
       card.className = 'card';
-      card.href = '/' + r.id;
-      var badge = r.used
-        ? '<span class="badge used">사용중</span>'
-        : '<span class="badge free">빈방</span>';
-      var body = r.used
-        ? '<p>' + esc(r.title || '(제목 없음)') + '</p>' + badge
-          + '<div class="updated">업데이트 ' + esc(r.updated) + '</div>'
-        : '<p>비어 있는 공간입니다. 들어가서 HTML을 올려보세요.</p>' + badge;
-      card.innerHTML = '<h3>' + r.id + '</h3>' + body;
+      card.href = '/' + encodeURIComponent(r.id);
+
+      var badges = '<div class="badges">'
+        + (r.used ? '<span class="badge used">사용중</span>' : '<span class="badge free">빈방</span>')
+        + (r.locked ? '<span class="badge lock">비공개</span>' : '<span class="badge open">공개</span>')
+        + expBadge(r)
+        + '</div>';
+
+      var html = '<h3>' + esc(r.id) + '</h3>'
+        + '<p>' + descLine(r) + '</p>'
+        + badges
+        + (r.published ? '<div class="updated">업데이트 ' + esc(r.updated) + '</div>' : '');
+      card.innerHTML = html;
+
+      if(manage){
+        var mgr = document.createElement('div');
+        mgr.className = 'mgr';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = r.seed ? '비우기' : '방 삭제';
+        btn.addEventListener('click', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          destroyRoom(r);
+        });
+        mgr.appendChild(btn);
+        card.appendChild(mgr);
+      }
       grid.appendChild(card);
     });
   }
 
-  fetch('/api/rooms')
-    .then(function(r){
-      if(!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function(data){
-      render(data.rooms || []);
-      msg.textContent = '';
-    })
-    .catch(function(e){
-      msg.className = 'status-msg err';
-      msg.textContent = '방 목록을 불러오지 못했습니다: ' + e.message;
-    });
+  function destroyRoom(r){
+    var q = r.seed
+      ? "'" + r.id + "' 방의 모든 데이터(메모·파일, 게시된 웹페이지, 설정)를 비울까요? 방 자체는 유지됩니다."
+      : "'" + r.id + "' 방을 삭제할까요? 모든 데이터가 함께 삭제됩니다.";
+    if(!window.confirm(q)) return;
 
-  var addBtn = document.getElementById('addRoomBtn');
+    var headers = { 'content-type': 'application/json' };
+    if(r.locked){
+      var pw = window.prompt('비공개 방입니다. 비밀번호를 입력하세요.');
+      if(pw === null) return;
+      headers['x-room-password'] = pw;
+    }
+    msg.className = 'status-msg';
+    msg.textContent = '처리 중…';
+    fetch('/api/rooms', {
+      method: 'DELETE',
+      headers: headers,
+      body: JSON.stringify({ id: r.id })
+    }).then(function(res){
+      if(res.ok){ loadRooms(); return; }
+      msg.className = 'status-msg err';
+      msg.textContent = res.status === 401 ? '비밀번호가 올바르지 않습니다.' : '처리 실패 (HTTP ' + res.status + ')';
+    }).catch(function(e){
+      msg.className = 'status-msg err';
+      msg.textContent = '처리 실패: ' + e.message;
+    });
+  }
+
+  function loadRooms(){
+    fetch('/api/rooms')
+      .then(function(r){
+        if(!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data){
+        roomsCache = data.rooms || [];
+        render();
+        msg.className = 'status-msg';
+        msg.textContent = '';
+      })
+      .catch(function(e){
+        msg.className = 'status-msg err';
+        msg.textContent = '방 목록을 불러오지 못했습니다: ' + e.message;
+      });
+  }
+
+  mgrBtn.addEventListener('click', function(){
+    manage = !manage;
+    mgrBtn.textContent = manage ? '관리 완료' : '관리';
+    mgrBtn.className = manage ? 'addbtn on' : 'addbtn';
+    render();
+  });
+
   addBtn.addEventListener('click', function(){
     var name = (window.prompt('새 방 이름을 입력하세요. 이 이름이 주소가 됩니다.\n(영문·숫자·하이픈(-)·언더스코어(_), 최대 40자)') || '').trim();
     if(!name) return;
@@ -162,6 +253,8 @@ section{margin-bottom:40px}
       addBtn.disabled = false;
     }).catch(function(e){ window.alert('방 생성 실패: ' + e.message); addBtn.disabled = false; });
   });
+
+  loadRooms();
 })();
 </script>
 </body>

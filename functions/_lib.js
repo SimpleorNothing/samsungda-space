@@ -5,7 +5,13 @@
 //   1) 메모·파일  — 메모 작성·파일 첨부 저장/공유   (/api/room/:room/notes, /file/:id)
 //   2) 웹페이지   — HTML 파일 업로드 또는 소스 입력 게시 (autoweb은 마크다운 에디터)
 //   3) 대나무숲   — 전 방 공통 익명 게시 공간          (/api/room/:room/bamboo, 전역 피드)
-// 비밀번호가 설정된 방은 세 기능 모두 잠금.
+//
+// 방 meta 모델 (index.json → rooms[id]):
+//   { published, title, updatedAt, passwordHash, expiresAt }
+//   - published: 웹페이지 게시 여부 (레거시 meta는 readIndex에서 true로 정규화)
+//   - passwordHash: 비공개 방 열람 비밀번호 — 설정 시 세 기능 모두 잠금
+//   - expiresAt: 사용기한 (YYYY-MM-DD, 표시용 — 자동 삭제는 하지 않음)
+// 방 점유(사용중) 판정 = published 또는 notes.json 존재 (api/rooms.js 참조)
 
 export const ROOMS = ['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'autoweb'];
 
@@ -54,8 +60,27 @@ export function escapeHtml(s) {
 
 export async function readIndex(env) {
   const obj = await env.SPACE.get('index.json');
-  if (!obj) return { rooms: {} };
-  try { return JSON.parse(await obj.text()); } catch (e) { return { rooms: {} }; }
+  let index = { rooms: {} };
+  if (obj) {
+    try { index = JSON.parse(await obj.text()); } catch (e) { index = { rooms: {} }; }
+  }
+  if (!index.rooms) index.rooms = {};
+  // 레거시 meta(published 필드 없음 = 게시중이던 방) 정규화
+  for (const k in index.rooms) {
+    const m = index.rooms[k];
+    if (m && m.published === undefined) m.published = true;
+  }
+  return index;
+}
+
+// 게시도, 비밀번호도, 사용기한도 없는 meta는 인덱스에서 제거해도 됨
+export function metaIsEmpty(meta) {
+  return !meta || (!meta.published && !meta.passwordHash && !meta.expiresAt);
+}
+
+// KST 오늘 날짜 (YYYY-MM-DD)
+export function todayKST() {
+  return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 10);
 }
 
 export async function writeIndex(env, index) {
@@ -183,6 +208,12 @@ textarea.input:focus{border-color:var(--brand)}
 button.mini{font-size:12px;padding:4px 10px;margin-left:auto}
 .empty-line{font-size:13px;color:var(--muted);margin-top:16px}
 .count{font-size:12px;color:var(--muted);margin-top:6px;text-align:right}
+.head-flex{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.head-side{display:flex;align-items:center;gap:8px;flex:none;padding-top:4px}
+.badge{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:7px}
+.badge.open{background:#eef1f5;color:var(--muted)}
+.badge.lock{background:#fdecea;color:#c0392b}
+.hint{font-weight:400;color:var(--muted)}
 `;
 
 // 마크다운 본문 타이포그래피 — 미리보기(.preview)와 게시 문서가 공유
@@ -212,18 +243,26 @@ const MARKED_LINK = `<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/mar
 
 // ---------- 방 페이지 ----------
 // 잠김: 비밀번호 게이트 / 그 외: 3탭 워크스페이스 (메모·파일 / 웹페이지 / 대나무숲)
+// 헤더 우측: 공개/비공개 배지 + 방 설정(공개 범위·사용기한) 버튼
 
 export function roomPage(room, meta, authorized) {
-  const used = !!meta;
-  const locked = used && meta.passwordHash && !authorized;
+  const used = !!(meta && meta.published);
+  const priv = !!(meta && meta.passwordHash);
+  const locked = priv && !authorized;
   const editor = isEditorRoom(room);
   const title = used ? escapeHtml(meta.title || '(제목 없음)') : '';
   const updated = used ? escapeHtml(String(meta.updatedAt || '').slice(0, 10)) : '';
+  const exp = (meta && meta.expiresAt) ? escapeHtml(meta.expiresAt) : '';
+  const expired = exp && exp < todayKST();
+  const expLine = exp ? ' · 사용기한 ~' + exp + (expired ? ' (만료)' : '') : '';
 
-  let statusLine, bodyHtml, script;
+  const visBadge = '<span class="badge ' + (priv ? 'lock">비공개' : 'open">공개') + '</span>';
+
+  let statusLine, bodyHtml, script, headSide;
 
   if (locked) {
-    statusLine = '사용중 · ' + title + ' · 업데이트 ' + updated + ' · 열람 비밀번호가 설정된 방입니다';
+    statusLine = '비공개 방입니다 · 열람하려면 비밀번호가 필요합니다' + expLine;
+    headSide = visBadge;
     bodyHtml = `
       <div class="panel">
         <h2>비밀번호 입력</h2>
@@ -236,10 +275,30 @@ export function roomPage(room, meta, authorized) {
       </div>`;
     script = lockedScript(room);
   } else {
-    statusLine = used
+    statusLine = (used
       ? '웹페이지 게시중 · ' + title + ' · 업데이트 ' + updated
-      : '게시된 웹페이지 없음 — 메모·파일과 대나무숲은 바로 사용할 수 있습니다';
+      : '게시된 웹페이지 없음 — 메모·파일과 대나무숲은 바로 사용할 수 있습니다') + expLine;
+    headSide = visBadge + '<button id="setBtn">방 설정</button>';
     bodyHtml = `
+      <div class="panel" id="setPanel" style="display:none">
+        <h2>방 설정</h2>
+        <label class="opt"><input type="radio" name="vis" value="public"${priv ? '' : ' checked'}> 공개 — 누구나 열람</label>
+        <label class="opt"><input type="radio" name="vis" value="private"${priv ? ' checked' : ''}> 비공개 — 비밀번호를 아는 사람만 열람 (모든 탭에 적용)</label>
+        <div class="field" id="setPwField" style="display:${priv ? '' : 'none'}">
+          <label for="setPw">비밀번호 ${priv ? '<span class="hint">(비워두면 기존 비밀번호 유지)</span>' : ''}</label>
+          <input id="setPw" type="password" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label for="setExp">사용기한 <span class="hint">(선택 — 방 목록에 표시, 비우면 해제)</span></label>
+          <input id="setExp" type="date" value="${exp}">
+        </div>
+        <div class="btn-row">
+          <button id="setSave">저장</button>
+          <button id="setCancel">닫기</button>
+        </div>
+        <div class="status-msg" id="msgSet"></div>
+      </div>
+
       <div class="tabbar">
         <button data-tab="notes">메모·파일</button>
         <button data-tab="web">웹페이지</button>
@@ -280,7 +339,7 @@ export function roomPage(room, meta, authorized) {
         </div>
         <div id="bambooList"></div>
       </div>`;
-    script = workspaceScript(room, meta, editor, used);
+    script = workspaceScript(room, meta, editor, used, priv);
   }
 
   return `<!DOCTYPE html>
@@ -297,9 +356,12 @@ ${editor && !locked ? MARKED_LINK : ''}
 <div class="wrap">
   <a class="back" href="/">← 방 목록으로</a>
   <section>
-    <div class="section-head">
-      <h1>${room}</h1>
-      <p class="status-line">${statusLine}</p>
+    <div class="section-head head-flex">
+      <div>
+        <h1>${room}</h1>
+        <p class="status-line">${statusLine}</p>
+      </div>
+      <div class="head-side">${headSide}</div>
     </div>
     ${bodyHtml}
   </section>
@@ -329,11 +391,6 @@ function webTabMarkup(room, used, editor) {
       <textarea id="md" class="md" placeholder="# 제목&#10;&#10;내용을 입력하세요…"></textarea>
       <div class="preview-label">미리보기</div>
       <div class="preview md-body" id="pv"></div>
-      <label class="opt"><input type="checkbox" id="pwChk"> 방 잠금 비밀번호 설정 (모든 탭에 적용)</label>
-      <div class="field" id="pwField" style="display:none">
-        <label for="pw">비밀번호</label>
-        <input id="pw" type="password" autocomplete="new-password">
-      </div>
       <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>`;
   }
   if (!used) {
@@ -352,11 +409,6 @@ function webTabMarkup(room, used, editor) {
       <div class="field">
         <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
         <input id="title" type="text" placeholder="예: 26년 시장 전망 대시보드">
-      </div>
-      <label class="opt"><input type="checkbox" id="pwChk"> 방 잠금 비밀번호 설정 (모든 탭에 적용)</label>
-      <div class="field" id="pwField" style="display:none">
-        <label for="pw">비밀번호</label>
-        <input id="pw" type="password" autocomplete="new-password">
       </div>
       <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>`;
   }
@@ -607,14 +659,12 @@ function bambooSnippet() {
   loadBamboo();`;
 }
 
-// 웹페이지 탭 (상태별)
+// 웹페이지 탭 (상태별) — 비밀번호 설정은 방 설정 패널로 이관되어 게시 폼에서 제거됨
 function webSnippet(room, meta, editor, used) {
   if (!used && editor) {
     return `
   var md = document.getElementById('md');
   var pv = document.getElementById('pv');
-  var pwChk = document.getElementById('pwChk');
-  var pwField = document.getElementById('pwField');
   var publishBtn = document.getElementById('publishBtn');
   ${editorCoreSnippet()}
 
@@ -623,12 +673,9 @@ function webSnippet(room, meta, editor, used) {
     publishBtn.disabled = !md.value.trim();
   });
   render();
-  pwChk.addEventListener('change', function(){ pwField.style.display = pwChk.checked ? '' : 'none'; });
 
   publishBtn.addEventListener('click', function(){
     if(!md.value.trim()) return;
-    var pw = pwChk.checked ? document.getElementById('pw').value : '';
-    if(pwChk.checked && !pw){ flash(msgWeb, '비밀번호를 입력하거나 설정을 해제하세요.', true); return; }
     var title = document.getElementById('title').value;
     publishBtn.disabled = true;
     flash(msgWeb, '게시 중…');
@@ -638,8 +685,7 @@ function webSnippet(room, meta, editor, used) {
       body: JSON.stringify({
         html: buildDoc(title || ROOM, marked.parse(md.value)),
         markdown: md.value,
-        title: title,
-        password: pw
+        title: title
       })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
@@ -659,8 +705,6 @@ function webSnippet(room, meta, editor, used) {
   var modeSrcBtn = document.getElementById('modeSrcBtn');
   var modeFile = document.getElementById('modeFile');
   var modeSrc = document.getElementById('modeSrc');
-  var pwChk = document.getElementById('pwChk');
-  var pwField = document.getElementById('pwField');
   var publishBtn = document.getElementById('publishBtn');
   var mode = 'file';
   var htmlText = null;
@@ -694,19 +738,16 @@ function webSnippet(room, meta, editor, used) {
     e.preventDefault(); dz.classList.remove('is-over');
     readFile(e.dataTransfer.files && e.dataTransfer.files[0], onFile);
   });
-  pwChk.addEventListener('change', function(){ pwField.style.display = pwChk.checked ? '' : 'none'; });
 
   publishBtn.addEventListener('click', function(){
     var htmlBody = mode === 'file' ? htmlText : srcTa.value;
     if(!htmlBody || !htmlBody.trim()) return;
-    var pw = pwChk.checked ? document.getElementById('pw').value : '';
-    if(pwChk.checked && !pw){ flash(msgWeb, '비밀번호를 입력하거나 설정을 해제하세요.', true); return; }
     publishBtn.disabled = true;
     flash(msgWeb, '게시 중…');
     fetch('/api/room/' + ROOM, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ html: htmlBody, title: document.getElementById('title').value, password: pw })
+      body: JSON.stringify({ html: htmlBody, title: document.getElementById('title').value })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
       if(r.status === 409){ flash(msgWeb, '이미 게시된 방입니다. 새로고침 후 확인하세요.', true); }
@@ -835,8 +876,51 @@ function webSnippet(room, meta, editor, used) {
   });`;
 }
 
+// 방 설정 패널 (공개/비공개 전환 + 사용기한)
+function settingsSnippet(priv) {
+  return `
+  var IS_PRIVATE = ${priv ? 'true' : 'false'};
+  var setPanel = document.getElementById('setPanel');
+  var msgSet = document.getElementById('msgSet');
+  var setPw = document.getElementById('setPw');
+  var setExp = document.getElementById('setExp');
+
+  document.getElementById('setBtn').addEventListener('click', function(){
+    setPanel.style.display = setPanel.style.display === 'none' ? '' : 'none';
+  });
+  document.getElementById('setCancel').addEventListener('click', function(){
+    setPanel.style.display = 'none';
+    flash(msgSet, '');
+  });
+
+  function syncPwField(){
+    var v = document.querySelector('input[name="vis"]:checked').value;
+    document.getElementById('setPwField').style.display = v === 'private' ? '' : 'none';
+  }
+  document.querySelectorAll('input[name="vis"]').forEach(function(r){
+    r.addEventListener('change', syncPwField);
+  });
+
+  document.getElementById('setSave').addEventListener('click', function(){
+    var vis = document.querySelector('input[name="vis"]:checked').value;
+    if(vis === 'private' && !IS_PRIVATE && !setPw.value){
+      flash(msgSet, '비공개로 바꾸려면 비밀번호를 입력하세요.', true);
+      return;
+    }
+    flash(msgSet, '저장 중…');
+    fetch('/api/room/' + ROOM + '/settings', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ visibility: vis, password: setPw.value, expiresAt: setExp.value || null })
+    }).then(function(r){
+      if(r.ok){ location.reload(); return; }
+      flash(msgSet, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '저장 실패 (HTTP ' + r.status + ')', true);
+    }).catch(function(e){ flash(msgSet, '저장 실패: ' + e.message, true); });
+  });`;
+}
+
 // 3탭 워크스페이스 전체 스크립트
-function workspaceScript(room, meta, editor, used) {
+function workspaceScript(room, meta, editor, used, priv) {
   return `
 (function(){
   var ROOM = '${room}';
@@ -857,6 +941,9 @@ function workspaceScript(room, meta, editor, used) {
     b.addEventListener('click', function(){ showTab(b.getAttribute('data-tab')); });
   });
   showTab('${used ? 'web' : 'notes'}');
+
+  // ---- 방 설정 ----
+  ${settingsSnippet(priv)}
 
   // ---- 메모·파일 ----
   ${notesSnippet()}
