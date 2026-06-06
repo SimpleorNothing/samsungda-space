@@ -80,7 +80,7 @@ section{margin-bottom:40px}
 
 /* ───── 불 꺼짐/켜짐 상태 (빈방=off · 사용중=on) ─────
    .tinted보다 뒤에 선언해 상태가 틴트를 덮어쓰되,
-   사용중+테마색은 그 방의 색으로 불이 켜지도록 color-mix 처리 */
+   테마색이 지정된 방은 빈방·사용중 모두 그 방의 색으로 카드 전체를 틴트 */
 
 /* 빈방 — 불 꺼진 방 (채도 제거 + 한 단계 어둡게) */
 .card.off{background:#eceef1;border-color:#e0e3e8}
@@ -123,10 +123,19 @@ section{margin-bottom:40px}
 .card.on.tinted .updated,.card.on.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.on.tinted:hover{border-color:var(--c);box-shadow:0 6px 26px color-mix(in srgb, var(--c) 26%, transparent)}
 
-/* 빈방 + 테마색 — 불 꺼진 상태 유지, 점 색만 남김 */
-.card.off.tinted{background:#eceef1;border-color:#e0e3e8}
-.card.off.tinted h3{color:#9aa1ab}
-.card.off.tinted:hover{border-color:#c8cdd5;box-shadow:0 4px 18px rgba(90,100,115,.10)}
+/* 빈방 + 테마색 — 방 색으로 카드 전체를 틴트 */
+.card.off.tinted{
+  background:color-mix(in srgb, var(--c) 8%, #fff);
+  border-color:color-mix(in srgb, var(--c) 30%, #fff);
+}
+.card.off.tinted h3{color:var(--c)}
+.card.off.tinted h3::after{opacity:.4}
+.card.off.tinted p{color:color-mix(in srgb, var(--c) 45%, #5b6470)}
+.card.off.tinted .badge.free,
+.card.off.tinted .badge.open,
+.card.off.tinted .badge.exp{background:color-mix(in srgb, var(--c) 12%, #fff);color:color-mix(in srgb, var(--c) 65%, #5b6470)}
+.card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
+.card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
