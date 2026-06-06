@@ -1,5 +1,6 @@
 // GET    /api/rooms — 전체 방 현황 (점유·공개여부·사용기한·테마 색)
 // POST   /api/rooms — 새 빈방 생성 (이름 = URL). 삭제된 시드 방과 같은 이름이면 그 방을 복구.
+//                     신규 생성·복구 방은 사용기한 기본 1개월 (방 설정에서 변경 가능)
 // DELETE /api/rooms — 방 관리. body { id, mode }
 //                     mode 'clear'  → 데이터만 비우고 방은 유지
 //                     mode 'delete' → 데이터 삭제 + 방을 목록에서 제거 (시드 방은 index.removed에 기록)
@@ -8,6 +9,15 @@ import {
   ROOMS, allRooms, isValidRoomId, roomExists, readIndex, writeIndex,
   isAuthorized, todayKST, json,
 } from '../_lib.js';
+
+// 신규 방 기본 사용기한: 생성일 + 1개월 (KST 기준)
+function oneMonthLater() {
+  const p = todayKST().split('-');
+  const d = new Date(+p[0], +p[1] - 1, +p[2]);
+  d.setMonth(d.getMonth() + 1);
+  const z = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate());
+}
 
 export async function onRequestGet(context) {
   const index = await readIndex(context.env);
@@ -57,6 +67,8 @@ export async function onRequestPost(context) {
   } else {
     index.created.push(id);
   }
+  // 기본 사용기한 1개월 — published:false를 명시해 레거시 meta 정규화(published 미정의 = true)를 피함
+  index.rooms[id] = { published: false, expiresAt: oneMonthLater() };
   await writeIndex(context.env, index);
   return json({ ok: true, id: id }, 201);
 }
