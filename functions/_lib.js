@@ -448,7 +448,9 @@ function webTabMarkup(room, used, editor) {
         <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
         <input id="title" type="text" placeholder="예: 26년 시장 전망 대시보드">
       </div>
-      <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>`;
+      <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>
+      <div class="preview-label" id="pvLabel" style="display:none">미리보기</div>
+      <div class="viewer" id="pvWrap" style="display:none"><iframe id="pvFrame" sandbox="allow-scripts" title="미리보기"></iframe></div>`;
   }
   if (editor) {
     return `
@@ -746,9 +748,31 @@ function webSnippet(room, meta, editor, used) {
   var publishBtn = document.getElementById('publishBtn');
   var mode = 'file';
   var htmlText = null;
+  var pvLabel = document.getElementById('pvLabel');
+  var pvWrap = document.getElementById('pvWrap');
+  var pvFrame = document.getElementById('pvFrame');
+  var pvTimer = null;
+
+  function renderPreview(){
+    var doc = mode === 'file' ? htmlText : srcTa.value;
+    if(doc && doc.trim()){
+      pvFrame.srcdoc = doc;
+      pvLabel.style.display = '';
+      pvWrap.style.display = '';
+    } else {
+      pvFrame.srcdoc = '';
+      pvLabel.style.display = 'none';
+      pvWrap.style.display = 'none';
+    }
+  }
+  function schedulePreview(){
+    clearTimeout(pvTimer);
+    pvTimer = setTimeout(renderPreview, 400);
+  }
 
   function syncPublish(){
     publishBtn.disabled = mode === 'file' ? !htmlText : !srcTa.value.trim();
+    schedulePreview();
   }
   function setMode(m){
     mode = m;
