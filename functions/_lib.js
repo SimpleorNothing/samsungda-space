@@ -4,7 +4,7 @@
 // 방 페이지 구성 (3탭 워크스페이스):
 //   1) 메모·파일  — 메모 작성·파일 첨부 저장/공유   (/api/room/:room/notes, /file/:id)
 //   2) 웹페이지   — HTML 파일 업로드 또는 소스 입력 게시 (autoweb은 마크다운 에디터)
-//   3) 대나무숲   — 전 방 공통 익명 게시 공간          (/api/room/:room/bamboo, 전역 피드)
+//   3) 블라인드 보이스 — 전 방 공통 익명 게시 공간    (/api/room/:room/bamboo, 전역 피드)
 //
 // 방 meta 모델 (index.json → rooms[id]):
 //   { published, title, updatedAt, passwordHash, expiresAt }
@@ -247,7 +247,7 @@ const FONT_LINK = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orio
 const MARKED_LINK = `<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>`;
 
 // ---------- 방 페이지 ----------
-// 잠김: 비밀번호 게이트 / 그 외: 3탭 워크스페이스 (메모·파일 / 웹페이지 / 대나무숲)
+// 잠김: 비밀번호 게이트 / 그 외: 3탭 워크스페이스 (메모·파일 / 웹페이지 / 블라인드 보이스)
 // 헤더 우측: 공개/비공개 배지 + 방 설정(공개 범위·사용기한) 버튼
 
 export function roomPage(room, meta, authorized) {
@@ -282,7 +282,7 @@ export function roomPage(room, meta, authorized) {
   } else {
     statusLine = (used
       ? '웹페이지 게시중 · ' + title + ' · 업데이트 ' + updated
-      : '게시된 웹페이지 없음 — 메모·파일과 대나무숲은 바로 사용할 수 있습니다') + expLine;
+      : '게시된 웹페이지 없음 — 메모·파일과 블라인드 보이스는 바로 사용할 수 있습니다') + expLine;
     headSide = visBadge + '<button id="setBtn">방 설정</button>';
     bodyHtml = `
       <div class="panel" id="setPanel" style="display:none">
@@ -307,7 +307,7 @@ export function roomPage(room, meta, authorized) {
       <div class="tabbar">
         <button data-tab="notes">메모·파일</button>
         <button data-tab="web">웹페이지</button>
-        <button data-tab="bamboo">대나무숲</button>
+        <button data-tab="bamboo">블라인드 보이스</button>
       </div>
 
       <div class="tabpanel" id="tab-notes">
@@ -335,8 +335,8 @@ export function roomPage(room, meta, authorized) {
 
       <div class="tabpanel" id="tab-bamboo">
         <div class="panel">
-          <h2>대나무숲</h2>
-          <p class="desc">익명 공간입니다. 글은 모든 방의 대나무숲에 공통으로 표시됩니다. 작성자 정보는 저장되지 않으며, 본인이 쓴 글은 이 브라우저에서만 삭제할 수 있습니다.</p>
+          <h2>블라인드 보이스</h2>
+          <p class="desc">익명 공간입니다. 글은 모든 방의 블라인드 보이스에 공통으로 표시됩니다. 작성자 정보는 저장되지 않으며, 본인이 쓴 글은 이 브라우저에서만 삭제할 수 있습니다.</p>
           <textarea id="bText" class="input" maxlength="500" placeholder="답답한 마음, 하고 싶은 말을 자유롭게 적어보세요 (최대 500자)"></textarea>
           <div class="count" id="bCount">0 / 500</div>
           <div class="btn-row"><button id="bPost" disabled>익명으로 올리기</button></div>
@@ -574,7 +574,7 @@ function notesSnippet() {
   loadNotes();`;
 }
 
-// 대나무숲 탭 (전 방 공통 피드 — 토큰도 전역 키로 보관)
+// 블라인드 보이스 탭 (전 방 공통 피드 — 토큰도 전역 키로 보관)
 function bambooSnippet() {
   return `
   var msgBamboo = document.getElementById('msgBamboo');
@@ -812,7 +812,7 @@ function webSnippet(room, meta, editor, used) {
   });
 
   document.getElementById('deleteBtn').addEventListener('click', function(){
-    if(!window.confirm('게시된 웹페이지를 삭제할까요? 메모·파일과 대나무숲은 유지됩니다.')) return;
+    if(!window.confirm('게시된 웹페이지를 삭제할까요? 메모·파일과 블라인드 보이스는 유지됩니다.')) return;
     flash(msgWeb, '삭제 중…');
     fetch('/api/room/' + ROOM, { method: 'DELETE' })
       .then(function(r){
@@ -871,7 +871,7 @@ function webSnippet(room, meta, editor, used) {
   });
 
   document.getElementById('deleteBtn').addEventListener('click', function(){
-    if(!window.confirm('게시된 웹페이지를 삭제할까요? 메모·파일과 대나무숲은 유지됩니다.')) return;
+    if(!window.confirm('게시된 웹페이지를 삭제할까요? 메모·파일과 블라인드 보이스는 유지됩니다.')) return;
     flash(msgWeb, '삭제 중…');
     fetch('/api/room/' + ROOM, { method: 'DELETE' })
       .then(function(r){
@@ -953,7 +953,7 @@ function workspaceScript(room, meta, editor, used, priv) {
   // ---- 메모·파일 ----
   ${notesSnippet()}
 
-  // ---- 대나무숲 ----
+  // ---- 블라인드 보이스 ----
   ${bambooSnippet()}
 
   // ---- 웹페이지 ----
