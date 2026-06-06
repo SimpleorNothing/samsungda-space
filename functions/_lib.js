@@ -891,7 +891,7 @@ function lockedScript(room) {
       if(r.ok){ location.reload(); return; }
       setMsg(r.status === 401 ? '비밀번호가 올바르지 않습니다.' : '확인 실패 (HTTP ' + r.status + ')', true);
       enterBtn.disabled = false;
-    }).catch(function(e){ setMsg('확인 실패: ' + e.message, true); });
+    }).catch(function(e){ setMsg('확인 실패: ' + e.message, true); enterBtn.disabled = false; });
   }
   enterBtn.addEventListener('click', enter);
   pw.addEventListener('keydown', function(e){ if(e.key === 'Enter') enter(); });
