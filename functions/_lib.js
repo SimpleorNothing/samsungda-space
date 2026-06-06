@@ -385,7 +385,7 @@ export function roomPage(room, meta, authorized) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${room} · DA Space</title>
+<title>${room} · My Space</title>
 ${FONT_LINK}
 ${editor && !locked ? MARKED_LINK : ''}
 <style>${BASE_CSS}${color ? ':root{--brand:' + color + ';}' : ''}${editor && !locked ? MD_CSS : ''}</style>
