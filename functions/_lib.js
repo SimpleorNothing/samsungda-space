@@ -1,9 +1,15 @@
 // DA Space 공유 유틸 — 방 목록·해시·인덱스·인증·페이지 템플릿
 // 방 구성을 바꾸려면 ROOMS 배열만 수정하면 됩니다.
+//
+// 방 페이지 구성 (3탭 워크스페이스):
+//   1) 메모·파일  — 메모 작성·파일 첨부 저장/공유   (/api/room/:room/notes, /file/:id)
+//   2) 웹페이지   — HTML 파일 업로드 또는 소스 입력 게시 (autoweb은 마크다운 에디터)
+//   3) 대나무숲   — 방별 익명 게시 공간              (/api/room/:room/bamboo)
+// 비밀번호가 설정된 방은 세 기능 모두 잠금.
 
 export const ROOMS = ['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'autoweb'];
 
-// 에디터 방 — 파일 업로드 대신 마크다운 입력창으로 페이지를 작성·게시
+// 에디터 방 — 웹페이지 탭이 파일 업로드 대신 마크다운 에디터로 동작
 export const EDITOR_ROOMS = ['autoweb'];
 export function isEditorRoom(id) {
   return EDITOR_ROOMS.indexOf(id) !== -1;
@@ -104,7 +110,7 @@ export function html(body) {
   });
 }
 
-// ---------- 공통 스타일 (space-prototype.html 그대로) ----------
+// ---------- 공통 스타일 (space-prototype.html 기반 + 워크스페이스 확장) ----------
 
 export const BASE_CSS = `
 :root{--bg:#ffffff;--surface:#f6f7f9;--text:#1a1d21;--muted:#5b6470;--border:#e6e9ee;--brand:#1257d6;}
@@ -150,9 +156,33 @@ textarea.md{width:100%;min-height:280px;margin-top:16px;font-family:inherit;font
   color:var(--text);background:var(--bg);border:1.5px solid var(--border);border-radius:14px;
   padding:14px 16px;outline:none;resize:vertical;}
 textarea.md:focus{border-color:var(--brand)}
+textarea.input{width:100%;min-height:110px;margin-top:14px;font-family:inherit;font-size:14px;line-height:1.7;
+  color:var(--text);background:var(--bg);border:1.5px solid var(--border);border-radius:14px;
+  padding:14px 16px;outline:none;resize:vertical;}
+textarea.input:focus{border-color:var(--brand)}
 .preview-label{font-size:13px;font-weight:600;color:var(--muted);margin-top:16px}
 .preview{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:22px;margin-top:8px;
   min-height:100px;overflow:auto;}
+.tabbar{display:flex;gap:4px;border-bottom:1.5px solid var(--border);margin-top:20px}
+.tabbar button{border:none;border-bottom:2px solid transparent;border-radius:0;background:none;
+  color:var(--muted);font-size:14px;font-weight:600;padding:10px 14px;margin-bottom:-1.5px;}
+.tabbar button:hover{color:var(--brand)}
+.tabbar button.active{color:var(--brand);border-bottom-color:var(--brand)}
+.tabpanel{display:none}
+.tabpanel.active{display:block}
+.subtabs{display:flex;gap:8px;margin-top:16px}
+.subtabs button.active{border-color:var(--brand);color:var(--brand);background:rgba(18,87,214,.06)}
+.note{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:18px 20px;margin-top:12px}
+.note h3{font-size:15px;font-weight:700}
+.note p{font-size:13px;line-height:1.75;margin-top:6px;white-space:pre-wrap;word-break:break-word}
+.note .files{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
+.note .files a{font-size:13px;color:var(--brand);text-decoration:none;background:#fff;
+  border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;transition:.15s}
+.note .files a:hover{border-color:var(--brand)}
+.meta-line{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-top:12px}
+button.mini{font-size:12px;padding:4px 10px;margin-left:auto}
+.empty-line{font-size:13px;color:var(--muted);margin-top:16px}
+.count{font-size:12px;color:var(--muted);margin-top:6px;text-align:right}
 `;
 
 // 마크다운 본문 타이포그래피 — 미리보기(.preview)와 게시 문서가 공유
@@ -180,7 +210,8 @@ export const MD_CSS = `
 const FONT_LINK = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">`;
 const MARKED_LINK = `<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>`;
 
-// ---------- 방 페이지 (3상태: 빈방 / 잠김 / 사용중) ----------
+// ---------- 방 페이지 ----------
+// 잠김: 비밀번호 게이트 / 그 외: 3탭 워크스페이스 (메모·파일 / 웹페이지 / 대나무숲)
 
 export function roomPage(room, meta, authorized) {
   const used = !!meta;
@@ -191,60 +222,7 @@ export function roomPage(room, meta, authorized) {
 
   let statusLine, bodyHtml, script;
 
-  if (!used) {
-    if (editor) {
-      statusLine = '빈방 · 마크다운으로 바로 작성해 게시할 수 있습니다';
-      bodyHtml = `
-      <div class="panel">
-        <h2>사용법</h2>
-        <ol>
-          <li>아래 입력창에 마크다운으로 내용을 작성합니다. (<code># 제목</code>, <code>- 목록</code>, <code>**굵게**</code>, <code>| 표 |</code> 등)</li>
-          <li>입력하는 즉시 아래 미리보기에서 완성된 페이지 모습을 확인할 수 있습니다.</li>
-          <li>게시하면 작성한 내용이 그대로 이 방의 웹페이지가 됩니다. 게시 후 수정·삭제 가능합니다.</li>
-        </ol>
-      </div>
-      <div class="field">
-        <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
-        <input id="title" type="text" placeholder="예: 주간 회의 안내">
-      </div>
-      <textarea id="md" class="md" placeholder="# 제목&#10;&#10;내용을 입력하세요…"></textarea>
-      <div class="preview-label">미리보기</div>
-      <div class="preview md-body" id="pv"></div>
-      <label class="opt"><input type="checkbox" id="pwChk"> 열람 비밀번호 설정</label>
-      <div class="field" id="pwField" style="display:none">
-        <label for="pw">비밀번호</label>
-        <input id="pw" type="password" autocomplete="new-password">
-      </div>
-      <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>
-      <div class="status-msg" id="msg"></div>`;
-      script = editorEmptyScript(room);
-    } else {
-      statusLine = '빈방 · 지금 바로 사용할 수 있습니다';
-      bodyHtml = `
-      <div class="panel">
-        <h2>사용법</h2>
-        <ol>
-          <li>아래 영역에 HTML 파일을 끌어다 놓거나 클릭해 선택합니다.</li>
-          <li>비밀번호를 설정하면 방문자는 비밀번호 입력 후에만 열람할 수 있습니다.</li>
-          <li>업로드 후 같은 화면에서 다른 HTML로 교체하거나 삭제할 수 있습니다.</li>
-        </ol>
-      </div>
-      <div class="dropzone" id="dz">HTML 파일을 여기에 끌어다 놓거나 클릭하세요</div>
-      <input id="file" type="file" accept=".html,.htm,text/html" hidden>
-      <div class="field">
-        <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
-        <input id="title" type="text" placeholder="예: 26년 시장 전망 대시보드">
-      </div>
-      <label class="opt"><input type="checkbox" id="pwChk"> 열람 비밀번호 설정</label>
-      <div class="field" id="pwField" style="display:none">
-        <label for="pw">비밀번호</label>
-        <input id="pw" type="password" autocomplete="new-password">
-      </div>
-      <div class="btn-row"><button id="uploadBtn" disabled>업로드</button></div>
-      <div class="status-msg" id="msg"></div>`;
-      script = emptyScript(room);
-    }
-  } else if (locked) {
+  if (locked) {
     statusLine = '사용중 · ' + title + ' · 업데이트 ' + updated + ' · 열람 비밀번호가 설정된 방입니다';
     bodyHtml = `
       <div class="panel">
@@ -257,38 +235,52 @@ export function roomPage(room, meta, authorized) {
         <div class="status-msg" id="msg"></div>
       </div>`;
     script = lockedScript(room);
-  } else if (editor) {
-    statusLine = '사용중 · ' + title + ' · 업데이트 ' + updated;
-    bodyHtml = `
-      <div class="viewer"><iframe src="/${room}/view" title="${room}"></iframe></div>
-      <div class="btn-row">
-        <button id="openBtn">전체화면으로 열기</button>
-        <button id="editBtn">내용 수정</button>
-        <button class="danger" id="deleteBtn">삭제</button>
-      </div>
-      <div id="editSec" style="display:none">
-        <textarea id="md" class="md"></textarea>
-        <div class="preview-label">미리보기</div>
-        <div class="preview md-body" id="pv"></div>
-        <div class="btn-row">
-          <button id="saveBtn">수정 게시</button>
-          <button id="cancelBtn">취소</button>
-        </div>
-      </div>
-      <div class="status-msg" id="msg"></div>`;
-    script = editorUsedScript(room, meta);
   } else {
-    statusLine = '사용중 · ' + title + ' · 업데이트 ' + updated;
+    statusLine = used
+      ? '웹페이지 게시중 · ' + title + ' · 업데이트 ' + updated
+      : '게시된 웹페이지 없음 — 메모·파일과 대나무숲은 바로 사용할 수 있습니다';
     bodyHtml = `
-      <div class="viewer"><iframe src="/${room}/view" title="${room}"></iframe></div>
-      <div class="btn-row">
-        <button id="openBtn">전체화면으로 열기</button>
-        <button id="replaceBtn">HTML 교체</button>
-        <button class="danger" id="deleteBtn">삭제</button>
+      <div class="tabbar">
+        <button data-tab="notes">메모·파일</button>
+        <button data-tab="web">웹페이지</button>
+        <button data-tab="bamboo">대나무숲</button>
       </div>
-      <input id="file" type="file" accept=".html,.htm,text/html" hidden>
-      <div class="status-msg" id="msg"></div>`;
-    script = usedScript(room);
+
+      <div class="tabpanel" id="tab-notes">
+        <div class="panel">
+          <h2>메모·파일 저장</h2>
+          <div class="field">
+            <label for="nTitle">제목 (선택)</label>
+            <input id="nTitle" type="text" placeholder="예: 회의 메모, 공유 자료">
+          </div>
+          <textarea id="nText" class="input" placeholder="내용을 입력하세요 (메모만, 파일만, 또는 둘 다 가능)"></textarea>
+          <div class="field">
+            <label for="nFiles">파일 첨부 (선택 — 최대 5개, 개당 10MB)</label>
+            <input id="nFiles" type="file" multiple>
+          </div>
+          <div class="btn-row"><button id="nSave">저장</button></div>
+          <div class="status-msg" id="msgNotes"></div>
+        </div>
+        <div id="noteList"></div>
+      </div>
+
+      <div class="tabpanel" id="tab-web">
+        ${webTabMarkup(room, used, editor)}
+        <div class="status-msg" id="msgWeb"></div>
+      </div>
+
+      <div class="tabpanel" id="tab-bamboo">
+        <div class="panel">
+          <h2>대나무숲</h2>
+          <p class="desc">익명 공간입니다. 작성자 정보는 저장되지 않으며, 본인이 쓴 글은 이 브라우저에서만 삭제할 수 있습니다.</p>
+          <textarea id="bText" class="input" maxlength="500" placeholder="답답한 마음, 하고 싶은 말을 자유롭게 적어보세요 (최대 500자)"></textarea>
+          <div class="count" id="bCount">0 / 500</div>
+          <div class="btn-row"><button id="bPost" disabled>익명으로 올리기</button></div>
+          <div class="status-msg" id="msgBamboo"></div>
+        </div>
+        <div id="bambooList"></div>
+      </div>`;
+    script = workspaceScript(room, meta, editor, used);
   }
 
   return `<!DOCTYPE html>
@@ -317,26 +309,113 @@ ${editor && !locked ? MARKED_LINK : ''}
 </html>`;
 }
 
-// ---------- 클라이언트 스크립트 (상태별) ----------
+// ---------- 웹페이지 탭 마크업 (상태별) ----------
 
-function fileReaderSnippet() {
+function webTabMarkup(room, used, editor) {
+  if (!used && editor) {
+    return `
+      <div class="panel">
+        <h2>마크다운으로 페이지 만들기</h2>
+        <ol>
+          <li>아래 입력창에 마크다운으로 내용을 작성합니다. (<code># 제목</code>, <code>- 목록</code>, <code>**굵게**</code>, <code>| 표 |</code> 등)</li>
+          <li>입력하는 즉시 아래 미리보기에서 완성된 페이지 모습을 확인할 수 있습니다.</li>
+          <li>게시하면 작성한 내용이 그대로 이 방의 웹페이지가 됩니다.</li>
+        </ol>
+      </div>
+      <div class="field">
+        <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
+        <input id="title" type="text" placeholder="예: 주간 회의 안내">
+      </div>
+      <textarea id="md" class="md" placeholder="# 제목&#10;&#10;내용을 입력하세요…"></textarea>
+      <div class="preview-label">미리보기</div>
+      <div class="preview md-body" id="pv"></div>
+      <label class="opt"><input type="checkbox" id="pwChk"> 방 잠금 비밀번호 설정 (모든 탭에 적용)</label>
+      <div class="field" id="pwField" style="display:none">
+        <label for="pw">비밀번호</label>
+        <input id="pw" type="password" autocomplete="new-password">
+      </div>
+      <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>`;
+  }
+  if (!used) {
+    return `
+      <div class="subtabs">
+        <button id="modeFileBtn" class="active">파일 업로드</button>
+        <button id="modeSrcBtn">소스 입력</button>
+      </div>
+      <div id="modeFile">
+        <div class="dropzone" id="dz">HTML 파일을 여기에 끌어다 놓거나 클릭하세요</div>
+        <input id="file" type="file" accept=".html,.htm,text/html" hidden>
+      </div>
+      <div id="modeSrc" style="display:none">
+        <textarea id="srcTa" class="md" placeholder="&lt;!DOCTYPE html&gt;… HTML 소스를 붙여넣으세요"></textarea>
+      </div>
+      <div class="field">
+        <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
+        <input id="title" type="text" placeholder="예: 26년 시장 전망 대시보드">
+      </div>
+      <label class="opt"><input type="checkbox" id="pwChk"> 방 잠금 비밀번호 설정 (모든 탭에 적용)</label>
+      <div class="field" id="pwField" style="display:none">
+        <label for="pw">비밀번호</label>
+        <input id="pw" type="password" autocomplete="new-password">
+      </div>
+      <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>`;
+  }
+  if (editor) {
+    return `
+      <div class="viewer"><iframe src="/${room}/view" title="${room}"></iframe></div>
+      <div class="btn-row">
+        <button id="openBtn">전체화면으로 열기</button>
+        <button id="editBtn">내용 수정</button>
+        <button class="danger" id="deleteBtn">삭제</button>
+      </div>
+      <div id="editSec" style="display:none">
+        <textarea id="md" class="md"></textarea>
+        <div class="preview-label">미리보기</div>
+        <div class="preview md-body" id="pv"></div>
+        <div class="btn-row">
+          <button id="saveBtn">수정 게시</button>
+          <button id="cancelBtn">취소</button>
+        </div>
+      </div>`;
+  }
   return `
-  function setMsg(t, err){ msg.textContent = t || ''; msg.className = err ? 'status-msg err' : 'status-msg'; }
+      <div class="viewer"><iframe src="/${room}/view" title="${room}"></iframe></div>
+      <div class="btn-row">
+        <button id="openBtn">전체화면으로 열기</button>
+        <button id="fileRepBtn">파일로 교체</button>
+        <button id="srcRepBtn">소스로 교체</button>
+        <button class="danger" id="deleteBtn">삭제</button>
+      </div>
+      <input id="file" type="file" accept=".html,.htm,text/html" hidden>
+      <div id="srcRepSec" style="display:none">
+        <textarea id="srcTa" class="md" placeholder="&lt;!DOCTYPE html&gt;… 교체할 HTML 소스를 붙여넣으세요"></textarea>
+        <div class="btn-row">
+          <button id="srcRepGo">교체 게시</button>
+          <button id="srcRepCancel">취소</button>
+        </div>
+      </div>`;
+}
+
+// ---------- 클라이언트 스크립트 ----------
+
+// 메시지 표시 + HTML 파일 리더 (웹페이지 탭 공용)
+function helperSnippet() {
+  return `
+  function flash(el, t, err){ el.textContent = t || ''; el.className = err ? 'status-msg err' : 'status-msg'; }
   function readFile(file, cb){
     if(!file) return;
-    if(!/\\.html?$/i.test(file.name)){ setMsg('HTML 파일(.html)만 올릴 수 있습니다.', true); return; }
+    if(!/\\.html?$/i.test(file.name)){ flash(msgWeb, 'HTML 파일(.html)만 올릴 수 있습니다.', true); return; }
     var r = new FileReader();
     r.onload = function(){ cb(r.result, file); };
-    r.onerror = function(){ setMsg('파일을 읽지 못했습니다.', true); };
+    r.onerror = function(){ flash(msgWeb, '파일을 읽지 못했습니다.', true); };
     r.readAsText(file);
   }`;
 }
 
-// 에디터 공통: 메시지·이스케이프·게시 문서 빌드·미리보기 렌더
+// 마크다운 에디터 공용: 게시 문서 빌드·미리보기 렌더
 function editorCoreSnippet() {
   return `
   var MD_CSS = ${JSON.stringify(MD_CSS)};
-  function setMsg(t, err){ msg.textContent = t || ''; msg.className = err ? 'status-msg err' : 'status-msg'; }
   function esc(s){
     return String(s || '').replace(/[&<>"']/g, function(c){
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
@@ -359,66 +438,184 @@ function editorCoreSnippet() {
   }`;
 }
 
-function emptyScript(room) {
+// 메모·파일 탭
+function notesSnippet() {
   return `
-(function(){
-  var ROOM = '${room}';
-  var dz = document.getElementById('dz');
-  var input = document.getElementById('file');
-  var pwChk = document.getElementById('pwChk');
-  var pwField = document.getElementById('pwField');
-  var uploadBtn = document.getElementById('uploadBtn');
-  var msg = document.getElementById('msg');
-  var htmlText = null;
-  ${fileReaderSnippet()}
+  var msgNotes = document.getElementById('msgNotes');
+  var noteList = document.getElementById('noteList');
+  var nTitle = document.getElementById('nTitle');
+  var nText = document.getElementById('nText');
+  var nFiles = document.getElementById('nFiles');
+  var nSave = document.getElementById('nSave');
 
-  function onFile(text, file){
-    htmlText = text;
-    dz.textContent = file.name + ' (' + Math.round(file.size/1024) + 'KB) 선택됨';
-    uploadBtn.disabled = false;
-    setMsg('');
+  function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b/1024)) + 'KB'; }
+
+  function renderNotes(items){
+    noteList.innerHTML = '';
+    if(!items.length){
+      noteList.innerHTML = '<p class="empty-line">아직 저장된 메모·파일이 없습니다.</p>';
+      return;
+    }
+    items.forEach(function(n){
+      var card = document.createElement('div'); card.className = 'note';
+      if(n.title){ var h = document.createElement('h3'); h.textContent = n.title; card.appendChild(h); }
+      if(n.text){ var p = document.createElement('p'); p.textContent = n.text; card.appendChild(p); }
+      if(n.files && n.files.length){
+        var fw = document.createElement('div'); fw.className = 'files';
+        n.files.forEach(function(f){
+          var a = document.createElement('a');
+          a.href = '/api/room/' + ROOM + '/file/' + f.id;
+          a.textContent = f.name + ' (' + fmtSize(f.size) + ')';
+          fw.appendChild(a);
+        });
+        card.appendChild(fw);
+      }
+      var m = document.createElement('div'); m.className = 'meta-line';
+      var s = document.createElement('span'); s.textContent = n.createdAt; m.appendChild(s);
+      var del = document.createElement('button'); del.className = 'mini danger'; del.textContent = '삭제';
+      del.addEventListener('click', function(){
+        if(!window.confirm('이 메모를 삭제할까요? 첨부 파일도 함께 삭제됩니다.')) return;
+        fetch('/api/room/' + ROOM + '/notes?id=' + n.id, { method: 'DELETE' })
+          .then(function(r){ if(r.ok) loadNotes(); else flash(msgNotes, '삭제 실패 (HTTP ' + r.status + ')', true); })
+          .catch(function(e){ flash(msgNotes, '삭제 실패: ' + e.message, true); });
+      });
+      m.appendChild(del);
+      card.appendChild(m);
+      noteList.appendChild(card);
+    });
   }
 
-  dz.addEventListener('click', function(){ input.click(); });
-  input.addEventListener('change', function(){ readFile(input.files[0], onFile); input.value=''; });
-  dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('is-over'); });
-  dz.addEventListener('dragleave', function(){ dz.classList.remove('is-over'); });
-  dz.addEventListener('drop', function(e){
-    e.preventDefault(); dz.classList.remove('is-over');
-    readFile(e.dataTransfer.files && e.dataTransfer.files[0], onFile);
-  });
-  pwChk.addEventListener('change', function(){ pwField.style.display = pwChk.checked ? '' : 'none'; });
+  function loadNotes(){
+    fetch('/api/room/' + ROOM + '/notes')
+      .then(function(r){ return r.ok ? r.json() : { items: [] }; })
+      .then(function(d){ renderNotes(d.items || []); })
+      .catch(function(){ noteList.innerHTML = '<p class="empty-line">목록을 불러오지 못했습니다.</p>'; });
+  }
 
-  uploadBtn.addEventListener('click', function(){
-    if(!htmlText) return;
-    var pw = pwChk.checked ? document.getElementById('pw').value : '';
-    if(pwChk.checked && !pw){ setMsg('비밀번호를 입력하거나 설정을 해제하세요.', true); return; }
-    uploadBtn.disabled = true;
-    setMsg('업로드 중…');
-    fetch('/api/room/' + ROOM, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ html: htmlText, title: document.getElementById('title').value, password: pw })
-    }).then(function(r){
-      if(r.ok){ location.reload(); return; }
-      if(r.status === 409){ setMsg('이미 사용중인 방입니다. 새로고침 후 확인하세요.', true); }
-      else { setMsg('업로드 실패 (HTTP ' + r.status + ')', true); }
-      uploadBtn.disabled = false;
-    }).catch(function(e){ setMsg('업로드 실패: ' + e.message, true); uploadBtn.disabled = false; });
+  nSave.addEventListener('click', function(){
+    var files = nFiles.files ? Array.prototype.slice.call(nFiles.files) : [];
+    if(!nText.value.trim() && !files.length){ flash(msgNotes, '내용을 쓰거나 파일을 첨부하세요.', true); return; }
+    if(files.length > 5){ flash(msgNotes, '파일은 최대 5개까지 첨부할 수 있습니다.', true); return; }
+    for(var i = 0; i < files.length; i++){
+      if(files[i].size > 10 * 1048576){ flash(msgNotes, files[i].name + ' — 10MB를 초과합니다.', true); return; }
+    }
+    var fd = new FormData();
+    fd.append('title', nTitle.value);
+    fd.append('text', nText.value);
+    files.forEach(function(f){ fd.append('files', f); });
+    nSave.disabled = true;
+    flash(msgNotes, '저장 중…');
+    fetch('/api/room/' + ROOM + '/notes', { method: 'POST', body: fd })
+      .then(function(r){
+        nSave.disabled = false;
+        if(r.ok){ nTitle.value = ''; nText.value = ''; nFiles.value = ''; flash(msgNotes, '저장됨'); loadNotes(); }
+        else { flash(msgNotes, '저장 실패 (HTTP ' + r.status + ')', true); }
+      })
+      .catch(function(e){ nSave.disabled = false; flash(msgNotes, '저장 실패: ' + e.message, true); });
   });
-})();`;
+
+  loadNotes();`;
 }
 
-function editorEmptyScript(room) {
+// 대나무숲 탭
+function bambooSnippet() {
   return `
-(function(){
-  var ROOM = '${room}';
+  var msgBamboo = document.getElementById('msgBamboo');
+  var bambooList = document.getElementById('bambooList');
+  var bText = document.getElementById('bText');
+  var bCount = document.getElementById('bCount');
+  var bPost = document.getElementById('bPost');
+  var TOK_KEY = 'bamboo_' + ROOM;
+
+  function tokens(){
+    try { return JSON.parse(localStorage.getItem(TOK_KEY) || '{}'); } catch(e){ return {}; }
+  }
+  function saveToken(id, t){
+    var m = tokens(); m[id] = t;
+    try { localStorage.setItem(TOK_KEY, JSON.stringify(m)); } catch(e){}
+  }
+  function dropToken(id){
+    var m = tokens(); delete m[id];
+    try { localStorage.setItem(TOK_KEY, JSON.stringify(m)); } catch(e){}
+  }
+
+  function renderBamboo(posts){
+    bambooList.innerHTML = '';
+    if(!posts.length){
+      bambooList.innerHTML = '<p class="empty-line">아직 글이 없습니다. 첫 글을 남겨보세요.</p>';
+      return;
+    }
+    var mine = tokens();
+    posts.forEach(function(p){
+      var card = document.createElement('div'); card.className = 'note';
+      var t = document.createElement('p'); t.textContent = p.text; card.appendChild(t);
+      var m = document.createElement('div'); m.className = 'meta-line';
+      var s = document.createElement('span'); s.textContent = '익명 · ' + p.createdAt; m.appendChild(s);
+      if(mine[p.id]){
+        var del = document.createElement('button'); del.className = 'mini danger'; del.textContent = '삭제';
+        del.addEventListener('click', function(){
+          if(!window.confirm('이 글을 삭제할까요?')) return;
+          fetch('/api/room/' + ROOM + '/bamboo', {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: p.id, token: mine[p.id] })
+          }).then(function(r){
+            if(r.ok){ dropToken(p.id); loadBamboo(); }
+            else { flash(msgBamboo, '삭제 실패 (HTTP ' + r.status + ')', true); }
+          }).catch(function(e){ flash(msgBamboo, '삭제 실패: ' + e.message, true); });
+        });
+        m.appendChild(del);
+      }
+      card.appendChild(m);
+      bambooList.appendChild(card);
+    });
+  }
+
+  function loadBamboo(){
+    fetch('/api/room/' + ROOM + '/bamboo')
+      .then(function(r){ return r.ok ? r.json() : { posts: [] }; })
+      .then(function(d){ renderBamboo(d.posts || []); })
+      .catch(function(){ bambooList.innerHTML = '<p class="empty-line">목록을 불러오지 못했습니다.</p>'; });
+  }
+
+  bText.addEventListener('input', function(){
+    bCount.textContent = bText.value.length + ' / 500';
+    bPost.disabled = !bText.value.trim();
+  });
+
+  bPost.addEventListener('click', function(){
+    var text = bText.value.trim();
+    if(!text) return;
+    bPost.disabled = true;
+    flash(msgBamboo, '올리는 중…');
+    fetch('/api/room/' + ROOM + '/bamboo', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: text })
+    }).then(function(r){
+      if(!r.ok){ flash(msgBamboo, '올리기 실패 (HTTP ' + r.status + ')', true); bPost.disabled = false; return null; }
+      return r.json();
+    }).then(function(d){
+      if(!d) return;
+      saveToken(d.id, d.token);
+      bText.value = ''; bCount.textContent = '0 / 500';
+      flash(msgBamboo, '올라갔습니다.');
+      loadBamboo();
+    }).catch(function(e){ flash(msgBamboo, '올리기 실패: ' + e.message, true); bPost.disabled = false; });
+  });
+
+  loadBamboo();`;
+}
+
+// 웹페이지 탭 (상태별)
+function webSnippet(room, meta, editor, used) {
+  if (!used && editor) {
+    return `
   var md = document.getElementById('md');
   var pv = document.getElementById('pv');
   var pwChk = document.getElementById('pwChk');
   var pwField = document.getElementById('pwField');
   var publishBtn = document.getElementById('publishBtn');
-  var msg = document.getElementById('msg');
   ${editorCoreSnippet()}
 
   md.addEventListener('input', function(){
@@ -431,10 +628,10 @@ function editorEmptyScript(room) {
   publishBtn.addEventListener('click', function(){
     if(!md.value.trim()) return;
     var pw = pwChk.checked ? document.getElementById('pw').value : '';
-    if(pwChk.checked && !pw){ setMsg('비밀번호를 입력하거나 설정을 해제하세요.', true); return; }
+    if(pwChk.checked && !pw){ flash(msgWeb, '비밀번호를 입력하거나 설정을 해제하세요.', true); return; }
     var title = document.getElementById('title').value;
     publishBtn.disabled = true;
-    setMsg('게시 중…');
+    flash(msgWeb, '게시 중…');
     fetch('/api/room/' + ROOM, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -446,25 +643,87 @@ function editorEmptyScript(room) {
       })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
-      if(r.status === 409){ setMsg('이미 사용중인 방입니다. 새로고침 후 확인하세요.', true); }
-      else { setMsg('게시 실패 (HTTP ' + r.status + ')', true); }
+      if(r.status === 409){ flash(msgWeb, '이미 게시된 방입니다. 새로고침 후 확인하세요.', true); }
+      else { flash(msgWeb, '게시 실패 (HTTP ' + r.status + ')', true); }
       publishBtn.disabled = false;
-    }).catch(function(e){ setMsg('게시 실패: ' + e.message, true); publishBtn.disabled = false; });
-  });
-})();`;
-}
+    }).catch(function(e){ flash(msgWeb, '게시 실패: ' + e.message, true); publishBtn.disabled = false; });
+  });`;
+  }
 
-function editorUsedScript(room, meta) {
-  const titleJs = JSON.stringify((meta && meta.title) ? meta.title : room).replace(/</g, '\\u003c');
-  return `
-(function(){
-  var ROOM = '${room}';
+  if (!used) {
+    return `
+  var dz = document.getElementById('dz');
+  var input = document.getElementById('file');
+  var srcTa = document.getElementById('srcTa');
+  var modeFileBtn = document.getElementById('modeFileBtn');
+  var modeSrcBtn = document.getElementById('modeSrcBtn');
+  var modeFile = document.getElementById('modeFile');
+  var modeSrc = document.getElementById('modeSrc');
+  var pwChk = document.getElementById('pwChk');
+  var pwField = document.getElementById('pwField');
+  var publishBtn = document.getElementById('publishBtn');
+  var mode = 'file';
+  var htmlText = null;
+
+  function syncPublish(){
+    publishBtn.disabled = mode === 'file' ? !htmlText : !srcTa.value.trim();
+  }
+  function setMode(m){
+    mode = m;
+    modeFile.style.display = m === 'file' ? '' : 'none';
+    modeSrc.style.display = m === 'src' ? '' : 'none';
+    modeFileBtn.className = m === 'file' ? 'active' : '';
+    modeSrcBtn.className = m === 'src' ? 'active' : '';
+    syncPublish();
+  }
+  modeFileBtn.addEventListener('click', function(){ setMode('file'); });
+  modeSrcBtn.addEventListener('click', function(){ setMode('src'); });
+  srcTa.addEventListener('input', syncPublish);
+
+  function onFile(text, file){
+    htmlText = text;
+    dz.textContent = file.name + ' (' + Math.round(file.size/1024) + 'KB) 선택됨';
+    syncPublish();
+    flash(msgWeb, '');
+  }
+  dz.addEventListener('click', function(){ input.click(); });
+  input.addEventListener('change', function(){ readFile(input.files[0], onFile); input.value=''; });
+  dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('is-over'); });
+  dz.addEventListener('dragleave', function(){ dz.classList.remove('is-over'); });
+  dz.addEventListener('drop', function(e){
+    e.preventDefault(); dz.classList.remove('is-over');
+    readFile(e.dataTransfer.files && e.dataTransfer.files[0], onFile);
+  });
+  pwChk.addEventListener('change', function(){ pwField.style.display = pwChk.checked ? '' : 'none'; });
+
+  publishBtn.addEventListener('click', function(){
+    var htmlBody = mode === 'file' ? htmlText : srcTa.value;
+    if(!htmlBody || !htmlBody.trim()) return;
+    var pw = pwChk.checked ? document.getElementById('pw').value : '';
+    if(pwChk.checked && !pw){ flash(msgWeb, '비밀번호를 입력하거나 설정을 해제하세요.', true); return; }
+    publishBtn.disabled = true;
+    flash(msgWeb, '게시 중…');
+    fetch('/api/room/' + ROOM, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ html: htmlBody, title: document.getElementById('title').value, password: pw })
+    }).then(function(r){
+      if(r.ok){ location.reload(); return; }
+      if(r.status === 409){ flash(msgWeb, '이미 게시된 방입니다. 새로고침 후 확인하세요.', true); }
+      else { flash(msgWeb, '게시 실패 (HTTP ' + r.status + ')', true); }
+      publishBtn.disabled = false;
+    }).catch(function(e){ flash(msgWeb, '게시 실패: ' + e.message, true); publishBtn.disabled = false; });
+  });`;
+  }
+
+  if (editor) {
+    const titleJs = JSON.stringify((meta && meta.title) ? meta.title : room).replace(/</g, '\\u003c');
+    return `
   var TITLE = ${titleJs};
   var md = document.getElementById('md');
   var pv = document.getElementById('pv');
   var editSec = document.getElementById('editSec');
   var saveBtn = document.getElementById('saveBtn');
-  var msg = document.getElementById('msg');
   ${editorCoreSnippet()}
 
   document.getElementById('openBtn').addEventListener('click', function(){
@@ -472,52 +731,145 @@ function editorUsedScript(room, meta) {
   });
 
   document.getElementById('editBtn').addEventListener('click', function(){
-    setMsg('내용 불러오는 중…');
+    flash(msgWeb, '내용 불러오는 중…');
     fetch('/' + ROOM + '/source').then(function(r){
       return r.ok ? r.text() : '';
     }).then(function(t){
       md.value = t || '';
       editSec.style.display = '';
       render();
-      setMsg('');
+      flash(msgWeb, '');
       md.focus();
-    }).catch(function(e){ setMsg('불러오기 실패: ' + e.message, true); });
+    }).catch(function(e){ flash(msgWeb, '불러오기 실패: ' + e.message, true); });
   });
 
   document.getElementById('cancelBtn').addEventListener('click', function(){
     editSec.style.display = 'none';
-    setMsg('');
+    flash(msgWeb, '');
   });
 
   md.addEventListener('input', render);
 
   saveBtn.addEventListener('click', function(){
-    if(!md.value.trim()){ setMsg('내용을 입력하세요.', true); return; }
+    if(!md.value.trim()){ flash(msgWeb, '내용을 입력하세요.', true); return; }
     saveBtn.disabled = true;
-    setMsg('게시 중…');
+    flash(msgWeb, '게시 중…');
     fetch('/api/room/' + ROOM, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ html: buildDoc(TITLE, marked.parse(md.value)), markdown: md.value })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
-      setMsg(r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '게시 실패 (HTTP ' + r.status + ')', true);
+      flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '게시 실패 (HTTP ' + r.status + ')', true);
       saveBtn.disabled = false;
-    }).catch(function(e){ setMsg('게시 실패: ' + e.message, true); saveBtn.disabled = false; });
+    }).catch(function(e){ flash(msgWeb, '게시 실패: ' + e.message, true); saveBtn.disabled = false; });
   });
 
   document.getElementById('deleteBtn').addEventListener('click', function(){
-    if(!window.confirm(ROOM + ' 방을 비울까요? 게시물이 삭제됩니다.')) return;
-    setMsg('삭제 중…');
+    if(!window.confirm('게시된 웹페이지를 삭제할까요? 메모·파일과 대나무숲은 유지됩니다.')) return;
+    flash(msgWeb, '삭제 중…');
     fetch('/api/room/' + ROOM, { method: 'DELETE' })
       .then(function(r){
-        if(r.ok){ location.href = '/'; return; }
-        setMsg(r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '삭제 실패 (HTTP ' + r.status + ')', true);
-      }).catch(function(e){ setMsg('삭제 실패: ' + e.message, true); });
+        if(r.ok){ location.reload(); return; }
+        flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '삭제 실패 (HTTP ' + r.status + ')', true);
+      }).catch(function(e){ flash(msgWeb, '삭제 실패: ' + e.message, true); });
+  });`;
+  }
+
+  return `
+  var input = document.getElementById('file');
+  var srcTa = document.getElementById('srcTa');
+  var srcRepSec = document.getElementById('srcRepSec');
+
+  document.getElementById('openBtn').addEventListener('click', function(){
+    window.open('/' + ROOM + '/view', '_blank');
   });
+
+  document.getElementById('fileRepBtn').addEventListener('click', function(){ input.click(); });
+  input.addEventListener('change', function(){
+    readFile(input.files[0], function(text, file){
+      if(!window.confirm(file.name + ' 으로 교체할까요? 기존 웹페이지는 사라집니다.')) return;
+      var title = window.prompt('표시 이름 (비우면 기존 이름 유지)') || '';
+      flash(msgWeb, '교체 중…');
+      fetch('/api/room/' + ROOM, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ html: text, title: title })
+      }).then(function(r){
+        if(r.ok){ location.reload(); return; }
+        flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '교체 실패 (HTTP ' + r.status + ')', true);
+      }).catch(function(e){ flash(msgWeb, '교체 실패: ' + e.message, true); });
+    });
+    input.value = '';
+  });
+
+  document.getElementById('srcRepBtn').addEventListener('click', function(){
+    srcRepSec.style.display = srcRepSec.style.display === 'none' ? '' : 'none';
+  });
+  document.getElementById('srcRepCancel').addEventListener('click', function(){
+    srcRepSec.style.display = 'none';
+    flash(msgWeb, '');
+  });
+  document.getElementById('srcRepGo').addEventListener('click', function(){
+    if(!srcTa.value.trim()){ flash(msgWeb, '교체할 HTML 소스를 입력하세요.', true); return; }
+    if(!window.confirm('입력한 소스로 교체할까요? 기존 웹페이지는 사라집니다.')) return;
+    flash(msgWeb, '교체 중…');
+    fetch('/api/room/' + ROOM, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ html: srcTa.value, title: '' })
+    }).then(function(r){
+      if(r.ok){ location.reload(); return; }
+      flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '교체 실패 (HTTP ' + r.status + ')', true);
+    }).catch(function(e){ flash(msgWeb, '교체 실패: ' + e.message, true); });
+  });
+
+  document.getElementById('deleteBtn').addEventListener('click', function(){
+    if(!window.confirm('게시된 웹페이지를 삭제할까요? 메모·파일과 대나무숲은 유지됩니다.')) return;
+    flash(msgWeb, '삭제 중…');
+    fetch('/api/room/' + ROOM, { method: 'DELETE' })
+      .then(function(r){
+        if(r.ok){ location.reload(); return; }
+        flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '삭제 실패 (HTTP ' + r.status + ')', true);
+      }).catch(function(e){ flash(msgWeb, '삭제 실패: ' + e.message, true); });
+  });`;
+}
+
+// 3탭 워크스페이스 전체 스크립트
+function workspaceScript(room, meta, editor, used) {
+  return `
+(function(){
+  var ROOM = '${room}';
+  var msgWeb = document.getElementById('msgWeb');
+  ${helperSnippet()}
+
+  // ---- 탭 전환 ----
+  var tabBtns = document.querySelectorAll('.tabbar button');
+  function showTab(name){
+    tabBtns.forEach(function(b){
+      b.className = b.getAttribute('data-tab') === name ? 'active' : '';
+    });
+    ['notes', 'web', 'bamboo'].forEach(function(n){
+      document.getElementById('tab-' + n).className = 'tabpanel' + (n === name ? ' active' : '');
+    });
+  }
+  tabBtns.forEach(function(b){
+    b.addEventListener('click', function(){ showTab(b.getAttribute('data-tab')); });
+  });
+  showTab('${used ? 'web' : 'notes'}');
+
+  // ---- 메모·파일 ----
+  ${notesSnippet()}
+
+  // ---- 대나무숲 ----
+  ${bambooSnippet()}
+
+  // ---- 웹페이지 ----
+  ${webSnippet(room, meta, editor, used)}
 })();`;
 }
 
+// 잠김 상태 (비밀번호 게이트)
 function lockedScript(room) {
   return `
 (function(){
@@ -543,47 +895,5 @@ function lockedScript(room) {
   }
   enterBtn.addEventListener('click', enter);
   pw.addEventListener('keydown', function(e){ if(e.key === 'Enter') enter(); });
-})();`;
-}
-
-function usedScript(room) {
-  return `
-(function(){
-  var ROOM = '${room}';
-  var input = document.getElementById('file');
-  var msg = document.getElementById('msg');
-  ${fileReaderSnippet()}
-
-  document.getElementById('openBtn').addEventListener('click', function(){
-    window.open('/' + ROOM + '/view', '_blank');
-  });
-
-  document.getElementById('replaceBtn').addEventListener('click', function(){ input.click(); });
-  input.addEventListener('change', function(){
-    readFile(input.files[0], function(text, file){
-      if(!window.confirm(file.name + ' 으로 교체할까요? 기존 게시물은 사라집니다.')) return;
-      var title = window.prompt('표시 이름 (비우면 기존 이름 유지)') || '';
-      setMsg('교체 중…');
-      fetch('/api/room/' + ROOM, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ html: text, title: title })
-      }).then(function(r){
-        if(r.ok){ location.reload(); return; }
-        setMsg(r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '교체 실패 (HTTP ' + r.status + ')', true);
-      }).catch(function(e){ setMsg('교체 실패: ' + e.message, true); });
-    });
-    input.value = '';
-  });
-
-  document.getElementById('deleteBtn').addEventListener('click', function(){
-    if(!window.confirm(ROOM + ' 방을 비울까요? 게시물이 삭제됩니다.')) return;
-    setMsg('삭제 중…');
-    fetch('/api/room/' + ROOM, { method: 'DELETE' })
-      .then(function(r){
-        if(r.ok){ location.href = '/'; return; }
-        setMsg(r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '삭제 실패 (HTTP ' + r.status + ')', true);
-      }).catch(function(e){ setMsg('삭제 실패: ' + e.message, true); });
-  });
 })();`;
 }
