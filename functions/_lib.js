@@ -758,9 +758,11 @@ function webSnippet(room, meta, editor, used) {
   function renderPreview(){
     var doc = mode === 'file' ? htmlText : srcTa.value;
     if(doc && doc.trim()){
-      pvFrame.srcdoc = doc;
+      // 컨테이너를 먼저 보이게 한 뒤 srcdoc을 넣어야, display:none 상태에서
+      // srcdoc이 파싱되지 않아 미리보기가 빈 화면으로 남는 문제를 피한다.
       pvLabel.style.display = '';
       pvWrap.style.display = '';
+      if(pvFrame.srcdoc !== doc) pvFrame.srcdoc = doc;
     } else {
       pvFrame.srcdoc = '';
       pvLabel.style.display = 'none';
@@ -772,9 +774,10 @@ function webSnippet(room, meta, editor, used) {
     pvTimer = setTimeout(renderPreview, 400);
   }
 
-  function syncPublish(){
+  function syncPublish(immediate){
     publishBtn.disabled = mode === 'file' ? !htmlText : !srcTa.value.trim();
-    schedulePreview();
+    if(immediate){ clearTimeout(pvTimer); renderPreview(); }
+    else { schedulePreview(); }
   }
   function setMode(m){
     mode = m;
@@ -782,16 +785,16 @@ function webSnippet(room, meta, editor, used) {
     modeSrc.style.display = m === 'src' ? '' : 'none';
     modeFileBtn.className = m === 'file' ? 'active' : '';
     modeSrcBtn.className = m === 'src' ? 'active' : '';
-    syncPublish();
+    syncPublish(true);
   }
   modeFileBtn.addEventListener('click', function(){ setMode('file'); });
   modeSrcBtn.addEventListener('click', function(){ setMode('src'); });
-  srcTa.addEventListener('input', syncPublish);
+  srcTa.addEventListener('input', function(){ syncPublish(); });
 
   function onFile(text, file){
     htmlText = text;
     dz.textContent = file.name + ' (' + Math.round(file.size/1024) + 'KB) 선택됨';
-    syncPublish();
+    syncPublish(true);
     flash(msgWeb, '');
   }
   dz.addEventListener('click', function(){ input.click(); });
