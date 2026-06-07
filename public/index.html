@@ -109,12 +109,9 @@ section{margin-bottom:40px}
 .card.on .mgr{border-color:#f0e3bd}
 .card.on:hover{border-color:#e9c463;box-shadow:0 6px 26px rgba(255,176,46,.24)}
 
-/* 사용중 + 테마색 — 그 방의 색으로 불이 켜짐 */
+/* 사용중 + 테마색 — 그 방의 색으로 불이 켜짐 (그라데이션 없이 단색 틴트) */
 .card.on.tinted{
-  background:radial-gradient(120% 90% at 50% 0%,
-    color-mix(in srgb, var(--c) 22%, #fff) 0%,
-    color-mix(in srgb, var(--c) 10%, #fff) 38%,
-    color-mix(in srgb, var(--c) 3%, #fff) 75%);
+  background:color-mix(in srgb, var(--c) 12%, #fff);
   border-color:color-mix(in srgb, var(--c) 35%, #fff);
   box-shadow:0 4px 22px color-mix(in srgb, var(--c) 18%, transparent);
 }
