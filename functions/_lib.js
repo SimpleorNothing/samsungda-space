@@ -448,7 +448,7 @@ function webTabMarkup(room, used, editor) {
       </div>
       <div class="field">
         <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
-        <input id="title" type="text" placeholder="예: 26년 시장 전망 대시보드">
+        <input id="title" type="text" placeholder="Time for a coffee break">
       </div>
       <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>
       <div class="preview-label" id="pvLabel" style="display:none">미리보기</div>
