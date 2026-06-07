@@ -282,33 +282,11 @@ export function roomPage(room, meta, authorized) {
 
   const visBadge = '<span class="badge ' + (priv ? 'lock">비공개' : 'open">공개') + '</span>';
 
-  if (!used) {
-    statusLine = '빈방 · 지금 바로 사용할 수 있습니다';
-    bodyHtml = `
-      <div class="panel">
-        <h2>사용법</h2>
-        <ol>
-          <li>아래 영역에 HTML 파일을 끌어다 놓거나 클릭해 선택합니다.</li>
-          <li>비밀번호를 설정하면 방문자는 비밀번호 입력 후에만 열람할 수 있습니다.</li>
-          <li>업로드 후 같은 화면에서 다른 HTML로 교체하거나 삭제할 수 있습니다.</li>
-        </ol>
-      </div>
-      <div class="dropzone" id="dz">HTML 파일을 여기에 끌어다 놓거나 클릭하세요</div>
-      <input id="file" type="file" accept=".html,.htm,text/html" hidden>
-      <div class="field">
-        <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
-        <input id="title" type="text" placeholder="예: 26년 할일">
-      </div>
-      <label class="opt"><input type="checkbox" id="pwChk"> 열람 비밀번호 설정</label>
-      <div class="field" id="pwField" style="display:none">
-        <label for="pw">비밀번호</label>
-        <input id="pw" type="password" autocomplete="new-password">
-      </div>
-      <div class="btn-row"><button id="uploadBtn" disabled>업로드</button></div>
-      <div class="status-msg" id="msg"></div>`;
-    script = emptyScript(room);
-  } else if (locked) {
-    statusLine = '사용중 · ' + title + ' · 업데이트 ' + updated + ' · 열람 비밀번호가 설정된 방입니다';
+  let statusLine, bodyHtml, script, headSide;
+
+  if (locked) {
+    statusLine = '비공개 방입니다 · 열람하려면 비밀번호가 필요합니다' + expLine;
+    headSide = visBadge;
     bodyHtml = `
       <div class="panel">
         <h2>비밀번호 입력</h2>
