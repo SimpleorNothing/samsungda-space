@@ -169,7 +169,7 @@ export function roomPage(room, meta, authorized) {
       <input id="file" type="file" accept=".html,.htm,text/html" hidden>
       <div class="field">
         <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
-        <input id="title" type="text" placeholder="예: 26년 시장 전망 대시보드">
+        <input id="title" type="text" placeholder="예: 26년 할일">
       </div>
       <label class="opt"><input type="checkbox" id="pwChk"> 열람 비밀번호 설정</label>
       <div class="field" id="pwField" style="display:none">
