@@ -173,7 +173,7 @@ section{margin-bottom:40px}
         <p class="desc">space.samsungda.net/A-1 형식으로 각 방에 바로 접속할 수 있습니다.</p>
       </div>
       <div class="head-btns">
-        <button class="addbtn" id="mgrBtn" type="button">관리</button>
+        <button class="addbtn" id="mgrBtn" type="button">방 관리</button>
         <button class="addbtn" id="addRoomBtn" type="button">+ 빈방 추가</button>
       </div>
     </div>
@@ -304,7 +304,7 @@ section{margin-bottom:40px}
 
   mgrBtn.addEventListener('click', function(){
     manage = !manage;
-    mgrBtn.textContent = manage ? '관리 완료' : '관리';
+    mgrBtn.textContent = manage ? '방 관리 완료' : '방 관리';
     mgrBtn.className = manage ? 'addbtn on' : 'addbtn';
     render();
   });
