@@ -213,7 +213,7 @@ section{margin-bottom:40px}
       </div>
       <div class="head-btns">
         <button class="addbtn" id="addRoomBtn" type="button">+ 빈방 추가</button>
-        <button class="addbtn" id="mgrBtn" type="button">관리</button>
+        <button class="addbtn" id="mgrBtn" type="button">방 관리</button>
         <button class="addbtn" id="helpBtn" type="button">사용방법</button>
       </div>
     </div>
@@ -403,7 +403,7 @@ section{margin-bottom:40px}
 
   mgrBtn.addEventListener('click', function(){
     manage = !manage;
-    mgrBtn.textContent = manage ? '관리 완료' : '관리';
+    mgrBtn.textContent = manage ? '관리 완료' : '방 관리';
     mgrBtn.className = manage ? 'addbtn on' : 'addbtn';
     render();
   });
