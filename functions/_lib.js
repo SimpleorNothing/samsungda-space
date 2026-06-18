@@ -376,7 +376,7 @@ export function roomPage(room, meta, authorized) {
           </div>
           <textarea id="nText" class="input" placeholder="내용을 입력하세요 (메모만, 파일만, 또는 둘 다 가능)"></textarea>
           <div class="field">
-            <label for="nFiles">파일 첨부 (선택 — 최대 5개, 개당 10MB)</label>
+            <label for="nFiles">파일 첨부 (선택 — 최대 5개, 개당 50MB)</label>
             <input id="nFiles" type="file" multiple>
           </div>
           <div class="btn-row"><button id="nSave">저장</button></div>
@@ -613,7 +613,7 @@ function notesSnippet() {
     if(!nText.value.trim() && !files.length){ flash(msgNotes, '내용을 쓰거나 파일을 첨부하세요.', true); return; }
     if(files.length > 5){ flash(msgNotes, '파일은 최대 5개까지 첨부할 수 있습니다.', true); return; }
     for(var i = 0; i < files.length; i++){
-      if(files[i].size > 10 * 1048576){ flash(msgNotes, files[i].name + ' — 10MB를 초과합니다.', true); return; }
+      if(files[i].size > 50 * 1048576){ flash(msgNotes, files[i].name + ' — 50MB를 초과합니다.', true); return; }
     }
     var fd = new FormData();
     fd.append('title', nTitle.value);
