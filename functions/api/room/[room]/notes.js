@@ -4,7 +4,7 @@ import { isValidRoomId, roomExists, readIndex, isAuthorized, json } from '../../
 
 const MAX_TEXT_CHARS = 5000;
 const MAX_TITLE_CHARS = 60;
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 파일 1개 10MB
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 파일 1개 50MB
 const MAX_FILES_PER_NOTE = 5;
 
 function nowKST() {
@@ -74,7 +74,7 @@ export async function onRequestPost(context) {
 
   const files = [];
   for (const f of entries) {
-    if (f.size > MAX_FILE_BYTES) return json({ error: 'file too large (max 10MB)' }, 400);
+    if (f.size > MAX_FILE_BYTES) return json({ error: 'file too large (max 50MB)' }, 400);
     const fid = newId();
     await context.env.SPACE.put('rooms/' + room + '/files/' + fid, await f.arrayBuffer(), {
       httpMetadata: { contentType: f.type || 'application/octet-stream' },
