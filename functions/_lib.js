@@ -560,17 +560,19 @@ function notesSnippet() {
     } else { fallback(); }
   }
 
-  // 첨부 파일 다운로드 (서버가 attachment 헤더를 내려줌)
-  // 여러 파일은 동시에 누르면 브라우저가 일부만 받으므로 간격을 두고 순차 저장
-  function saveFiles(files){
-    files.forEach(function(f, i){
-      setTimeout(function(){
-        var a = document.createElement('a');
-        a.href = '/api/room/' + ROOM + '/file/' + f.id;
-        a.download = f.name;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      }, i * 600);
-    });
+  function clickDownload(href, name){
+    var a = document.createElement('a');
+    a.href = href;
+    if(name) a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+
+  // 첨부 저장: 1개는 그대로, 여러 개는 ZIP 한 파일로 받아 모바일에서도 전부 저장되게
+  function saveFiles(note){
+    var files = note.files || [];
+    if(files.length === 0) return;
+    if(files.length === 1){ clickDownload('/api/room/' + ROOM + '/file/' + files[0].id, files[0].name); return; }
+    clickDownload('/api/room/' + ROOM + '/notezip/' + note.id);
   }
 
   // 선택된 파일에 맞춰 드롭존 안내 문구 갱신
@@ -640,7 +642,7 @@ function notesSnippet() {
       }
       if(n.files && n.files.length){
         var saveBtn = document.createElement('button'); saveBtn.className = 'mini'; saveBtn.textContent = '파일 저장';
-        saveBtn.addEventListener('click', function(){ saveFiles(n.files); });
+        saveBtn.addEventListener('click', function(){ saveFiles(n); });
         actions.appendChild(saveBtn);
       }
       var del = document.createElement('button'); del.className = 'mini danger'; del.textContent = '삭제';
