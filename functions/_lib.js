@@ -176,8 +176,12 @@ button{font-family:inherit;font-size:13px;font-weight:600;
   padding:8px 16px;cursor:pointer;transition:.15s;}
 button:hover{border-color:var(--brand);color:var(--brand)}
 button.danger:hover{background:#ffe1e1;color:#c0392b;border-color:#ffe1e1}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button.primary:hover{background:#0e47b0;border-color:#0e47b0;color:#fff}
 button:disabled{opacity:.5;cursor:default}
 .btn-row{display:flex;gap:8px;margin-top:16px}
+.btn-row-end{justify-content:flex-end}
+textarea.input.is-over{border-color:var(--brand);background:rgba(18,87,214,.06)}
 .viewer{border:1.5px solid var(--border);border-radius:14px;margin-top:16px;overflow:hidden;background:var(--surface);}
 .viewer iframe{display:block;width:100%;height:70vh;border:none;background:#fff}
 .status-line{font-size:13px;color:var(--muted);margin-top:6px}
@@ -370,16 +374,12 @@ export function roomPage(room, meta, authorized) {
       <div class="tabpanel" id="tab-notes">
         <div class="panel">
           <h2>메모·파일 저장</h2>
-          <div class="field">
-            <label for="nTitle">제목 (선택)</label>
-            <input id="nTitle" type="text" placeholder="예: 회의 메모, 공유 자료">
-          </div>
-          <textarea id="nText" class="input" placeholder="내용을 입력하세요 (메모만, 파일만, 또는 둘 다 가능)"></textarea>
+          <textarea id="nText" class="input" placeholder="내용을 입력하세요 (메모만, 파일만, 또는 둘 다 가능) — 파일은 여기로 끌어다 놓아도 됩니다"></textarea>
           <div class="field">
             <label for="nFiles">파일 첨부 (선택 — 최대 5개, 개당 10MB)</label>
             <input id="nFiles" type="file" multiple>
           </div>
-          <div class="btn-row"><button id="nSave">저장</button></div>
+          <div class="btn-row btn-row-end"><button id="nSave" class="primary">저장</button></div>
           <div class="status-msg" id="msgNotes"></div>
         </div>
         <div id="noteList"></div>
@@ -559,12 +559,28 @@ function notesSnippet() {
   return `
   var msgNotes = document.getElementById('msgNotes');
   var noteList = document.getElementById('noteList');
-  var nTitle = document.getElementById('nTitle');
   var nText = document.getElementById('nText');
   var nFiles = document.getElementById('nFiles');
   var nSave = document.getElementById('nSave');
 
   function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b/1024)) + 'KB'; }
+
+  // 메모장(textarea) 위로 파일을 끌어다 놓으면 첨부에 추가
+  function addDroppedFiles(list){
+    if(!list || !list.length) return;
+    var dt = new DataTransfer();
+    if(nFiles.files){ for(var i = 0; i < nFiles.files.length; i++) dt.items.add(nFiles.files[i]); }
+    for(var j = 0; j < list.length; j++) dt.items.add(list[j]);
+    nFiles.files = dt.files;
+    flash(msgNotes, list.length + '개 파일이 첨부되었습니다.');
+  }
+  nText.addEventListener('dragover', function(e){ e.preventDefault(); nText.classList.add('is-over'); });
+  nText.addEventListener('dragleave', function(){ nText.classList.remove('is-over'); });
+  nText.addEventListener('drop', function(e){
+    if(!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+    e.preventDefault(); nText.classList.remove('is-over');
+    addDroppedFiles(e.dataTransfer.files);
+  });
 
   function renderNotes(items){
     noteList.innerHTML = '';
@@ -616,7 +632,6 @@ function notesSnippet() {
       if(files[i].size > 10 * 1048576){ flash(msgNotes, files[i].name + ' — 10MB를 초과합니다.', true); return; }
     }
     var fd = new FormData();
-    fd.append('title', nTitle.value);
     fd.append('text', nText.value);
     files.forEach(function(f){ fd.append('files', f); });
     nSave.disabled = true;
@@ -624,7 +639,7 @@ function notesSnippet() {
     fetch('/api/room/' + ROOM + '/notes', { method: 'POST', body: fd })
       .then(function(r){
         nSave.disabled = false;
-        if(r.ok){ nTitle.value = ''; nText.value = ''; nFiles.value = ''; flash(msgNotes, '저장됨'); loadNotes(); }
+        if(r.ok){ nText.value = ''; nFiles.value = ''; flash(msgNotes, '저장됨'); loadNotes(); }
         else { flash(msgNotes, '저장 실패 (HTTP ' + r.status + ')', true); }
       })
       .catch(function(e){ nSave.disabled = false; flash(msgNotes, '저장 실패: ' + e.message, true); });
