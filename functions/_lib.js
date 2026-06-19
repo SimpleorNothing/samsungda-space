@@ -354,7 +354,7 @@ export function roomPage(room, meta, authorized) {
       <div class="tabpanel" id="tab-notes">
         <div class="panel">
           <h2>메모·파일 저장</h2>
-          <textarea id="nText" class="input" placeholder="내용을 입력하세요 (메모만, 파일만, 또는 둘 다 가능)"></textarea>
+          <textarea id="nText" class="input" placeholder="내용을 입력하세요"></textarea>
           <div class="dropzone" id="nDrop">이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요</div>
           <input id="nFiles" type="file" multiple hidden>
           <div class="btn-row btn-row-end"><button id="nSave" class="primary">저장</button></div>
@@ -561,12 +561,15 @@ function notesSnippet() {
   }
 
   // 첨부 파일 다운로드 (서버가 attachment 헤더를 내려줌)
+  // 여러 파일은 동시에 누르면 브라우저가 일부만 받으므로 간격을 두고 순차 저장
   function saveFiles(files){
-    files.forEach(function(f){
-      var a = document.createElement('a');
-      a.href = '/api/room/' + ROOM + '/file/' + f.id;
-      a.download = f.name;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    files.forEach(function(f, i){
+      setTimeout(function(){
+        var a = document.createElement('a');
+        a.href = '/api/room/' + ROOM + '/file/' + f.id;
+        a.download = f.name;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      }, i * 600);
     });
   }
 
