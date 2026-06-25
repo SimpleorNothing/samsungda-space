@@ -5,7 +5,7 @@ import { isValidRoomId, roomExists, readIndex, isAuthorized, json } from '../../
 const MAX_TEXT_CHARS = 5000;
 const MAX_TITLE_CHARS = 60;
 const MAX_FILE_BYTES = 50 * 1024 * 1024; // 파일 1개 50MB
-const MAX_FILES_PER_NOTE = 5;
+const MAX_FILES_PER_NOTE = Infinity;
 
 function nowKST() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16);

@@ -669,7 +669,6 @@ function notesSnippet() {
   nSave.addEventListener('click', function(){
     var files = nFiles.files ? Array.prototype.slice.call(nFiles.files) : [];
     if(!nText.value.trim() && !files.length){ flash(msgNotes, '내용을 쓰거나 파일을 첨부하세요.', true); return; }
-    if(files.length > 5){ flash(msgNotes, '파일은 최대 5개까지 첨부할 수 있습니다.', true); return; }
     for(var i = 0; i < files.length; i++){
       if(files[i].size > 50 * 1048576){ flash(msgNotes, files[i].name + ' — 50MB를 초과합니다.', true); return; }
     }
