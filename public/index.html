@@ -378,6 +378,8 @@ section{margin-bottom:40px}
       ghostClass: 'dragging',
       chosenClass: 'dragging',
       dragClass: 'dragging',
+      forceFallback: true,   // HTML5 DnD 대신 포인터 이벤트 강제 사용 (<a> 충돌 방지)
+      fallbackClass: 'dragging',
       filter: '.mgr',
       preventOnFilter: false,
       onEnd: function(evt){
