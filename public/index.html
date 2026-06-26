@@ -325,7 +325,7 @@ section{margin-bottom:40px}
       var html = '<h3>' + dot + esc(r.id) + '</h3>'
         + '<p>' + descLine(r) + '</p>'
         + badges
-        + (r.published ? '<div class="updated">업데이트 ' + esc(r.updated) + '</div>' : '');
+        + (r.updated ? '<div class="updated">업데이트 ' + esc(r.updated) + '</div>' : '');
       card.innerHTML = html;
 
       if(manage){
@@ -347,26 +347,25 @@ section{margin-bottom:40px}
       card.draggable = true;
       card.addEventListener('dragstart', function(e){
         dragSrc = card;
-        card.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', r.id);
-      });
-      card.addEventListener('click', function(e){
-        if(card.classList.contains('dragging')) e.preventDefault();
+        setTimeout(function(){ card.classList.add('dragging'); }, 0);
       });
       card.addEventListener('dragend', function(){
         card.classList.remove('dragging');
+        dragSrc = null;
         grid.querySelectorAll('.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+      });
+      card.addEventListener('dragenter', function(e){
+        e.preventDefault();
+        if(dragSrc && dragSrc !== card) card.classList.add('drag-over');
       });
       card.addEventListener('dragover', function(e){
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        if(dragSrc && dragSrc !== card){
-          card.classList.add('drag-over');
-        }
       });
-      card.addEventListener('dragleave', function(){
-        card.classList.remove('drag-over');
+      card.addEventListener('dragleave', function(e){
+        if(!card.contains(e.relatedTarget)) card.classList.remove('drag-over');
       });
       card.addEventListener('drop', function(e){
         e.preventDefault();
@@ -375,6 +374,7 @@ section{margin-bottom:40px}
         var cards = Array.from(grid.children);
         var fromIdx = cards.indexOf(dragSrc);
         var toIdx = cards.indexOf(card);
+        if(fromIdx === -1 || toIdx === -1) return;
         roomsCache.splice(toIdx, 0, roomsCache.splice(fromIdx, 1)[0]);
         saveOrder();
         render();

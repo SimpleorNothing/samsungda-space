@@ -1,6 +1,6 @@
 // /api/room/:room/notes — GET 목록, POST 작성(메모+파일 멀티파트), DELETE ?id= 삭제
 // 비밀번호 설정된 방은 인증 쿠키 또는 x-room-password 헤더 필요.
-import { isValidRoomId, roomExists, readIndex, isAuthorized, json } from '../../../_lib.js';
+import { isValidRoomId, roomExists, readIndex, writeIndex, isAuthorized, json } from '../../../_lib.js';
 
 const MAX_TEXT_CHARS = 5000;
 const MAX_TITLE_CHARS = 60;
@@ -41,7 +41,7 @@ async function guard(context) {
   if (!(await isAuthorized(context.request, room, meta))) {
     return { fail: json({ error: 'unauthorized' }, 401) };
   }
-  return { room };
+  return { room, index };
 }
 
 export async function onRequestGet(context) {
@@ -55,6 +55,7 @@ export async function onRequestPost(context) {
   const g = await guard(context);
   if (g.fail) return g.fail;
   const room = g.room;
+  const index = g.index;
 
   let form;
   try { form = await context.request.formData(); } catch (e) {
@@ -87,6 +88,11 @@ export async function onRequestPost(context) {
   const data = await readNotes(context.env, room);
   data.items = [item].concat(data.items || []);
   await writeNotes(context.env, room, data);
+
+  if (!index.rooms[room]) index.rooms[room] = {};
+  index.rooms[room].updatedAt = nowKST();
+  await writeIndex(context.env, index);
+
   return json({ ok: true, item: item });
 }
 
