@@ -22,7 +22,7 @@ body{
   padding:56px 24px;
 }
 .wrap{max-width:860px;margin:0 auto}
-h1{font-size:30px;font-weight:800;letter-spacing:-0.5px}
+h1{font-size:30px;font-weight:800;letter-spacing:-0.5px;line-height:1.2}
 .sub{font-size:15px;color:var(--muted);margin-top:6px}
 h2{font-size:20px;font-weight:700;letter-spacing:-0.3px}
 .desc{font-size:13px;color:var(--muted);margin-top:4px}
@@ -109,12 +109,9 @@ section{margin-bottom:40px}
 .card.on .mgr{border-color:#f0e3bd}
 .card.on:hover{border-color:#e9c463;box-shadow:0 6px 26px rgba(255,176,46,.24)}
 
-/* 사용중 + 테마색 — 그 방의 색으로 불이 켜짐 */
+/* 사용중 + 테마색 — 그 방의 색으로 불이 켜짐 (그라데이션 없이 단색 틴트) */
 .card.on.tinted{
-  background:radial-gradient(120% 90% at 50% 0%,
-    color-mix(in srgb, var(--c) 22%, #fff) 0%,
-    color-mix(in srgb, var(--c) 10%, #fff) 38%,
-    color-mix(in srgb, var(--c) 3%, #fff) 75%);
+  background:color-mix(in srgb, var(--c) 12%, #fff);
   border-color:color-mix(in srgb, var(--c) 35%, #fff);
   box-shadow:0 4px 22px color-mix(in srgb, var(--c) 18%, transparent);
 }
@@ -137,6 +134,18 @@ section{margin-bottom:40px}
 .card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
+.card{cursor:grab}
+.card.drag-placeholder{opacity:.25 !important;background:#e8ecf2 !important;border:2px dashed #b0b8c4 !important;box-shadow:none !important}
+.card.drag-ghost{opacity:.9 !important;box-shadow:0 8px 32px rgba(18,87,214,.22) !important;cursor:grabbing !important}
+.grid{user-select:none}
+
+/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 카드를 끌어 위/아래로 옮길 수 있다. */
+.divider{
+  grid-column:1 / -1;
+  height:0;border-top:1px solid var(--border);
+  margin:6px 0;cursor:default;
+}
+.divider.drag-placeholder{opacity:.5 !important}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -147,12 +156,55 @@ section{margin-bottom:40px}
 .addbtn:hover{border-color:var(--brand);color:var(--brand)}
 .addbtn:disabled{opacity:.5;cursor:default}
 .addbtn.on{border-color:var(--brand);color:var(--brand);background:rgba(18,87,214,.06)}
+
+
+/* ───── 사용방법 모달 ───── */
+.modal-overlay{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(20,24,30,.45);
+  display:none;align-items:flex-start;justify-content:center;
+  padding:48px 16px;overflow-y:auto;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--bg);
+  border:1.5px solid var(--border);
+  border-radius:16px;
+  max-width:560px;width:100%;
+  padding:28px 28px 24px;
+  box-shadow:0 18px 60px rgba(20,24,30,.25);
+}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
+.modal-head h2{font-size:21px}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.modal-close{
+  font-family:inherit;font-size:20px;line-height:1;
+  border:none;background:transparent;color:var(--muted);
+  cursor:pointer;padding:4px;border-radius:7px;flex:none;
+}
+.modal-close:hover{background:var(--surface);color:var(--text)}
+.help-item{
+  border:1.5px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:10px;background:var(--surface);
+}
+.help-item h4{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.help-item h4 .tag{
+  font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;
+  background:rgba(18,87,214,.08);color:var(--brand);
+}
+.help-item p{font-size:13px;color:var(--muted);line-height:1.7;margin-top:7px}
+.help-item p b{color:var(--text);font-weight:600}
+.help-badges{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px}
+.help-badges span{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.help-badges .badge{flex:none}
+
 @media (max-width:600px){
   body{padding:32px 16px}
   h1{font-size:25px}
   .head-row{flex-wrap:wrap}
   .head-btns{width:100%}
   .head-btns .addbtn{flex:1}
+  .modal{padding:22px 18px}
 }
 </style>
 </head>
@@ -160,9 +212,11 @@ section{margin-bottom:40px}
 <div class="wrap">
 
   <section>
-    <div class="section-head">
-      <h1>My Space</h1>
-      <p class="sub">누구나 자신의 HTML을 빈방에 올려 공유하는 공간입니다.</p>
+    <div class="section-head head-row">
+      <div>
+        <h1>My Space</h1>
+        <p class="sub">빈방을 골라 들어가 메모나 파일, HTML을 올려 나만의 페이지로 만들고 공유하는 공간입니다.</p>
+      </div>
     </div>
   </section>
 
@@ -173,8 +227,9 @@ section{margin-bottom:40px}
         <p class="desc">space.samsungda.net/A-1 형식으로 각 방에 바로 접속할 수 있습니다.</p>
       </div>
       <div class="head-btns">
-        <button class="addbtn" id="mgrBtn" type="button">방 관리</button>
         <button class="addbtn" id="addRoomBtn" type="button">+ 빈방 추가</button>
+        <button class="addbtn" id="mgrBtn" type="button">방 관리</button>
+        <button class="addbtn" id="helpBtn" type="button">사용방법</button>
       </div>
     </div>
     <div class="grid" id="roomGrid"></div>
@@ -183,14 +238,71 @@ section{margin-bottom:40px}
 
 </div>
 
+<!-- 사용방법 모달 -->
+<div class="modal-overlay" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="helpTitle">사용방법</h2>
+      <button class="modal-close" id="helpClose" type="button" aria-label="닫기">&times;</button>
+    </div>
+    <p class="modal-sub">My Space의 각 메뉴와 방 기능을 설명합니다.</p>
+
+    <div class="help-item">
+      <h4><span class="tag">메뉴</span>+ 빈방 추가</h4>
+      <p>새로운 방을 만듭니다. 입력한 이름이 그대로 주소가 됩니다.
+        예) 이름을 <b>rooftop</b> 으로 지으면 <b>space.samsungda.net/rooftop</b> 으로 바로 접속할 수 있습니다.
+        이름에는 <b>영문·숫자·하이픈(-)·언더스코어(_)</b> 만 쓸 수 있어요 (최대 40자, 공백·한글·특수문자 불가).</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">메뉴</span>방 관리</h4>
+      <p>방 정리 모드를 켭니다. 켜면 각 방 카드에 <b>비우기</b> · <b>방 삭제</b> 버튼이 나타납니다.
+        다시 누르면 <b>관리 완료</b>로 바뀌며 정리 모드가 꺼집니다.</p>
+      <p><b>· 비우기</b> — 방 안의 메모·파일, 게시된 웹페이지, 설정을 모두 지우고 <b>빈방으로 되돌립니다.</b> 방 자체는 그대로 남습니다.<br>
+        <b>· 방 삭제</b> — 방의 모든 데이터를 지우고 <b>목록에서도 방을 없앱니다.</b> (같은 이름으로 빈방을 다시 추가하면 복구됩니다.)</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">방 입장</span>방 카드 클릭</h4>
+      <p>카드를 누르면 해당 방으로 들어갑니다. 빈방이면 바로 <b>메모·파일·HTML</b>을 올려 나만의 페이지로 만들고,
+        사용 중인 방이면 게시된 내용을 보거나 교체·삭제할 수 있습니다.</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">정렬</span>카드 드래그 · 구분선</h4>
+      <p>카드를 끌어다 놓으면 방 순서를 바꿀 수 있습니다. 목록에는 <b>구분선</b>이 있어, 카드를 구분선
+        <b>위/아래로 옮겨</b> 자주 쓰는 방과 그 외 방을 나눠 둘 수 있어요. 순서와 구분선 위치는 이 브라우저에 저장됩니다.</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">배지</span>카드에 표시되는 상태</h4>
+      <div class="help-badges">
+        <span><span class="badge used">사용중</span> 내용이 채워진 방</span>
+        <span><span class="badge free">빈방</span> 비어 있는 방</span>
+        <span><span class="badge open">공개</span> 누구나 열람 가능</span>
+        <span><span class="badge lock">비공개</span> 비밀번호 필요</span>
+        <span><span class="badge exp">~07-09</span> 사용 기한</span>
+        <span><span class="badge expired">기한 만료</span> 기한 지남</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/sortable.min.js"></script>
 <script>
 (function(){
   var grid = document.getElementById('roomGrid');
   var msg = document.getElementById('msg');
   var mgrBtn = document.getElementById('mgrBtn');
   var addBtn = document.getElementById('addRoomBtn');
+  var helpBtn = document.getElementById('helpBtn');
+  var helpModal = document.getElementById('helpModal');
+  var helpClose = document.getElementById('helpClose');
   var roomsCache = [];
   var manage = false;
+  var dividerPos = 0;
+  var ORDER_KEY = 'samsungda_room_order';
+  var DIVIDER_KEY = 'samsungda_room_divider';
 
   function esc(s){
     return String(s || '').replace(/[&<>"']/g, function(c){
@@ -210,12 +322,23 @@ section{margin-bottom:40px}
     return '비어 있는 방입니다. 들어가서 바로 사용해보세요.';
   }
 
+  function makeDivider(){
+    var d = document.createElement('div');
+    d.className = 'divider';
+    d.dataset.divider = '1';
+    d.setAttribute('aria-hidden', 'true');
+    return d;
+  }
+
   function render(){
     grid.innerHTML = '';
-    roomsCache.forEach(function (r) {
+    var pos = Math.max(0, Math.min(dividerPos, roomsCache.length));
+    roomsCache.forEach(function (r, i) {
+      if(i === pos) grid.appendChild(makeDivider());
       var card = document.createElement('a');
       card.className = 'card ' + (r.used ? 'on' : 'off');
       card.href = '/' + encodeURIComponent(r.id);
+      card.dataset.id = r.id;
 
       var color = (r.color && /^#[0-9a-f]{6}$/i.test(r.color)) ? r.color : '';
       if(color){
@@ -233,7 +356,7 @@ section{margin-bottom:40px}
       var html = '<h3>' + dot + esc(r.id) + '</h3>'
         + '<p>' + descLine(r) + '</p>'
         + badges
-        + (r.published ? '<div class="updated">업데이트 ' + esc(r.updated) + '</div>' : '');
+        + (r.updated ? '<div class="updated">업데이트 ' + esc(r.updated) + '</div>' : '');
       card.innerHTML = html;
 
       if(manage){
@@ -252,7 +375,77 @@ section{margin-bottom:40px}
         });
         card.appendChild(mgr);
       }
+
       grid.appendChild(card);
+    });
+    if(pos >= roomsCache.length) grid.appendChild(makeDivider());
+    setTimeout(initSortable, 0);
+  }
+
+  // 드래그 후 DOM 순서를 읽어 방 순서·구분선 위치를 동기화
+  function syncFromDom(){
+    var order = [], pos = null;
+    Array.prototype.forEach.call(grid.children, function(el){
+      if(el.dataset.divider){ pos = order.length; }
+      else if(el.dataset.id){ order.push(el.dataset.id); }
+    });
+    if(pos === null) pos = order.length;
+    var map = {};
+    roomsCache.forEach(function(r){ map[r.id] = r; });
+    roomsCache = order.map(function(id){ return map[id]; }).filter(Boolean);
+    dividerPos = pos;
+  }
+
+  function saveDivider(){
+    try{ localStorage.setItem(DIVIDER_KEY, JSON.stringify(dividerPos)); }catch(e){}
+  }
+
+  function applyDivider(){
+    try{
+      var saved = JSON.parse(localStorage.getItem(DIVIDER_KEY));
+      dividerPos = (typeof saved === 'number' && saved >= 0) ? saved : roomsCache.length;
+    }catch(e){ dividerPos = roomsCache.length; }
+    if(dividerPos > roomsCache.length) dividerPos = roomsCache.length;
+  }
+
+  function saveOrder(){
+    try{
+      var order = roomsCache.map(function(r){ return r.id; });
+      localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+    }catch(e){}
+  }
+
+  function applyOrder(){
+    try{
+      var saved = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null');
+      if(!Array.isArray(saved)) return;
+      var map = {};
+      roomsCache.forEach(function(r){ map[r.id] = r; });
+      var ordered = [];
+      saved.forEach(function(id){ if(map[id]){ ordered.push(map[id]); delete map[id]; } });
+      Object.values(map).forEach(function(r){ ordered.push(r); });
+      roomsCache = ordered;
+    }catch(e){}
+  }
+
+  var sortable = null;
+  function initSortable(){
+    if(sortable) sortable.destroy();
+    sortable = Sortable.create(grid, {
+      animation: 150,
+      ghostClass: 'drag-placeholder',  // 원본 자리 표시
+      dragClass: 'drag-ghost',          // 손에 들린 카드 (ghost clone)
+      forceFallback: true,
+      fallbackTolerance: 3,
+      filter: '.mgr, .divider',  // 구분선은 고정 — 카드만 끌어 위/아래로 이동
+      preventOnFilter: false,
+      onStart: function(){ msg.textContent = '이동 중… 구분선 위/아래로 옮길 수 있어요.'; msg.className = 'status-msg'; },
+      onEnd: function(){
+        msg.textContent = '';
+        syncFromDom();   // DOM 순서 기준으로 방 순서·구분선 위치 재계산
+        saveOrder();
+        saveDivider();
+      }
     });
   }
 
@@ -292,6 +485,8 @@ section{margin-bottom:40px}
       })
       .then(function(data){
         roomsCache = data.rooms || [];
+        applyOrder();
+        applyDivider();
         render();
         msg.className = 'status-msg';
         msg.textContent = '';
@@ -302,9 +497,21 @@ section{margin-bottom:40px}
       });
   }
 
+  function openHelp(){ helpModal.classList.add('open'); }
+  function closeHelp(){ helpModal.classList.remove('open'); }
+
+  helpBtn.addEventListener('click', openHelp);
+  helpClose.addEventListener('click', closeHelp);
+  helpModal.addEventListener('click', function(e){
+    if(e.target === helpModal) closeHelp();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeHelp();
+  });
+
   mgrBtn.addEventListener('click', function(){
     manage = !manage;
-    mgrBtn.textContent = manage ? '방 관리 완료' : '방 관리';
+    mgrBtn.textContent = manage ? '관리 완료' : '방 관리';
     mgrBtn.className = manage ? 'addbtn on' : 'addbtn';
     render();
   });
@@ -333,5 +540,16 @@ section{margin-bottom:40px}
   loadRooms();
 })();
 </script>
+<!-- 도구모음 런처 (samsungda.net) -->
+<style>
+.da-launcher{position:fixed;top:14px;right:16px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;height:29px;padding:0 9px;border:1.5px solid #e6e9ee;border-radius:7px;background:rgba(255,255,255,.92);-webkit-backdrop-filter:saturate(180%) blur(6px);backdrop-filter:saturate(180%) blur(6px);text-decoration:none;color:#1a1d21;font-family:'Pretendard',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:600;line-height:1;transition:.15s}
+.da-launcher:hover{border-color:#1257d6;box-shadow:0 4px 18px rgba(18,87,214,.12)}
+.da-launcher .da-gi{display:grid;grid-template-columns:1fr 1fr;gap:2px;width:18px;height:18px}
+.da-launcher .da-gi i{background:#5b6470;border-radius:1px;transition:.15s}
+.da-launcher:hover .da-gi i{background:#1257d6}
+</style>
+<a class="da-launcher" href="https://samsungda.net" title="도구모음 열기">
+  <span class="da-gi"><i></i><i></i><i></i><i></i></span>도구모음
+</a>
 </body>
 </html>
