@@ -138,6 +138,16 @@ section{margin-bottom:40px}
 .card.drag-placeholder{opacity:.25 !important;background:#e8ecf2 !important;border:2px dashed #b0b8c4 !important;box-shadow:none !important}
 .card.drag-ghost{opacity:.9 !important;box-shadow:0 8px 32px rgba(18,87,214,.22) !important;cursor:grabbing !important}
 .grid{user-select:none}
+
+/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 카드를 끌어 위/아래로 옮길 수 있다. */
+.divider{
+  grid-column:1 / -1;
+  display:flex;align-items:center;gap:12px;
+  margin:6px 0;color:var(--muted);font-size:12px;font-weight:600;
+  cursor:default;
+}
+.divider::before,.divider::after{content:"";flex:1;height:0;border-top:2px dashed var(--border)}
+.divider.drag-placeholder{opacity:.5 !important}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -258,6 +268,12 @@ section{margin-bottom:40px}
     </div>
 
     <div class="help-item">
+      <h4><span class="tag">정렬</span>카드 드래그 · 구분선</h4>
+      <p>카드를 끌어다 놓으면 방 순서를 바꿀 수 있습니다. 목록에는 <b>구분선</b>이 있어, 카드를 구분선
+        <b>위/아래로 옮겨</b> 자주 쓰는 방과 그 외 방을 나눠 둘 수 있어요. 순서와 구분선 위치는 이 브라우저에 저장됩니다.</p>
+    </div>
+
+    <div class="help-item">
       <h4><span class="tag">배지</span>카드에 표시되는 상태</h4>
       <div class="help-badges">
         <span><span class="badge used">사용중</span> 내용이 채워진 방</span>
@@ -284,7 +300,9 @@ section{margin-bottom:40px}
   var helpClose = document.getElementById('helpClose');
   var roomsCache = [];
   var manage = false;
+  var dividerPos = 0;
   var ORDER_KEY = 'samsungda_room_order';
+  var DIVIDER_KEY = 'samsungda_room_divider';
 
   function esc(s){
     return String(s || '').replace(/[&<>"']/g, function(c){
@@ -304,12 +322,23 @@ section{margin-bottom:40px}
     return '비어 있는 방입니다. 들어가서 바로 사용해보세요.';
   }
 
+  function makeDivider(){
+    var d = document.createElement('div');
+    d.className = 'divider';
+    d.dataset.divider = '1';
+    d.textContent = '구분선';
+    return d;
+  }
+
   function render(){
     grid.innerHTML = '';
-    roomsCache.forEach(function (r) {
+    var pos = Math.max(0, Math.min(dividerPos, roomsCache.length));
+    roomsCache.forEach(function (r, i) {
+      if(i === pos) grid.appendChild(makeDivider());
       var card = document.createElement('a');
       card.className = 'card ' + (r.used ? 'on' : 'off');
       card.href = '/' + encodeURIComponent(r.id);
+      card.dataset.id = r.id;
 
       var color = (r.color && /^#[0-9a-f]{6}$/i.test(r.color)) ? r.color : '';
       if(color){
@@ -349,7 +378,34 @@ section{margin-bottom:40px}
 
       grid.appendChild(card);
     });
+    if(pos >= roomsCache.length) grid.appendChild(makeDivider());
     setTimeout(initSortable, 0);
+  }
+
+  // 드래그 후 DOM 순서를 읽어 방 순서·구분선 위치를 동기화
+  function syncFromDom(){
+    var order = [], pos = null;
+    Array.prototype.forEach.call(grid.children, function(el){
+      if(el.dataset.divider){ pos = order.length; }
+      else if(el.dataset.id){ order.push(el.dataset.id); }
+    });
+    if(pos === null) pos = order.length;
+    var map = {};
+    roomsCache.forEach(function(r){ map[r.id] = r; });
+    roomsCache = order.map(function(id){ return map[id]; }).filter(Boolean);
+    dividerPos = pos;
+  }
+
+  function saveDivider(){
+    try{ localStorage.setItem(DIVIDER_KEY, JSON.stringify(dividerPos)); }catch(e){}
+  }
+
+  function applyDivider(){
+    try{
+      var saved = JSON.parse(localStorage.getItem(DIVIDER_KEY));
+      dividerPos = (typeof saved === 'number' && saved >= 0) ? saved : roomsCache.length;
+    }catch(e){ dividerPos = roomsCache.length; }
+    if(dividerPos > roomsCache.length) dividerPos = roomsCache.length;
   }
 
   function saveOrder(){
@@ -381,14 +437,14 @@ section{margin-bottom:40px}
       dragClass: 'drag-ghost',          // 손에 들린 카드 (ghost clone)
       forceFallback: true,
       fallbackTolerance: 3,
-      filter: '.mgr',
+      filter: '.mgr, .divider',  // 구분선은 고정 — 카드만 끌어 위/아래로 이동
       preventOnFilter: false,
-      onStart: function(){ msg.textContent = '이동 중… 놓으면 순서가 변경됩니다.'; msg.className = 'status-msg'; },
-      onEnd: function(evt){
+      onStart: function(){ msg.textContent = '이동 중… 구분선 위/아래로 옮길 수 있어요.'; msg.className = 'status-msg'; },
+      onEnd: function(){
         msg.textContent = '';
-        if(evt.oldIndex === evt.newIndex) return;
-        roomsCache.splice(evt.newIndex, 0, roomsCache.splice(evt.oldIndex, 1)[0]);
+        syncFromDom();   // DOM 순서 기준으로 방 순서·구분선 위치 재계산
         saveOrder();
+        saveDivider();
       }
     });
   }
@@ -430,6 +486,7 @@ section{margin-bottom:40px}
       .then(function(data){
         roomsCache = data.rooms || [];
         applyOrder();
+        applyDivider();
         render();
         msg.className = 'status-msg';
         msg.textContent = '';
