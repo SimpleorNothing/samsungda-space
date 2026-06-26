@@ -11,7 +11,7 @@ Cloudflare Pages + Pages Functions + R2. GreenNote와 동일 아키텍처.
 | `space.samsungda.net/` | 로비 — 방 목록 (사용중/빈방 배지, 제목, 업데이트 날짜) |
 | `space.samsungda.net/A-1` | 빈방: 사용법+업로드 / 잠김: 비밀번호 입력 / 사용중: 뷰어+교체·삭제 |
 | `space.samsungda.net/A-1/view` | 업로드된 HTML 원본 (뷰어 iframe 소스 · 전체화면 링크) |
-| `/api/rooms` | 점유 현황 JSON |
+| `/api/rooms` | GET 점유 현황 JSON (표시 순서·구분선 위치 포함) · PUT 로비 정렬·구분선 저장 |
 | `/api/room/A-1` | POST 업로드 · PUT 교체 · DELETE 삭제 |
 | `/api/room/A-1/auth` | POST 열람 비밀번호 검증 → 인증 쿠키(12시간) |
 
@@ -45,7 +45,8 @@ samsungda-space/
 ## R2 저장 구조
 
 ```
-index.json              # { rooms: { "A-1": { title, updatedAt, passwordHash } } }
+index.json              # { rooms: {...}, order: [...id], dividerPos: N, created: [...], removed: [...] }
+                        #   order/dividerPos: 로비 표시 순서와 구분선 위치 (정렬 모드에서 저장)
 rooms/A-1/page.html     # 게시된 HTML 원본
 ```
 

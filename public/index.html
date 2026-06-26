@@ -30,6 +30,23 @@ section{margin-bottom:40px}
 .section-head{margin-bottom:16px}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:600px){.grid{grid-template-columns:1fr}}
+
+/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 위/아래로 방을 나눈다. */
+.divider{
+  grid-column:1 / -1;
+  display:flex;align-items:center;gap:12px;
+  margin:6px 0;color:var(--muted);font-size:12px;font-weight:600;
+}
+.divider::before,.divider::after{content:"";flex:1;height:0;border-top:2px dashed var(--border)}
+.grid.reorder .divider{color:var(--brand)}
+.grid.reorder .divider::before,.grid.reorder .divider::after{border-top-color:var(--brand)}
+
+/* 정렬 모드 — 카드를 끌어 구분선 위/아래로 옮길 수 있다. */
+.grid.reorder .card{cursor:grab}
+.grid.reorder .card:active{cursor:grabbing}
+.card.dragging{opacity:.45}
+.grid.reorder .divider.drop-on{color:var(--brand)}
+.grid.reorder .divider.drop-on::before,.grid.reorder .divider.drop-on::after{border-top-style:solid}
 .card{
   display:block;
   min-width:0;
@@ -173,6 +190,7 @@ section{margin-bottom:40px}
         <p class="desc">space.samsungda.net/A-1 형식으로 각 방에 바로 접속할 수 있습니다.</p>
       </div>
       <div class="head-btns">
+        <button class="addbtn" id="orderBtn" type="button">정렬</button>
         <button class="addbtn" id="mgrBtn" type="button">관리</button>
         <button class="addbtn" id="addRoomBtn" type="button">+ 빈방 추가</button>
       </div>
@@ -189,8 +207,11 @@ section{margin-bottom:40px}
   var msg = document.getElementById('msg');
   var mgrBtn = document.getElementById('mgrBtn');
   var addBtn = document.getElementById('addRoomBtn');
+  var orderBtn = document.getElementById('orderBtn');
   var roomsCache = [];
+  var dividerPos = 0;
   var manage = false;
+  var reorder = false;
 
   function esc(s){
     return String(s || '').replace(/[&<>"']/g, function(c){
@@ -210,49 +231,158 @@ section{margin-bottom:40px}
     return '비어 있는 방입니다. 들어가서 바로 사용해보세요.';
   }
 
+  function makeDivider(){
+    var d = document.createElement('div');
+    d.className = 'divider';
+    d.dataset.divider = '1';
+    d.textContent = '구분선';
+    return d;
+  }
+
+  function makeCard(r){
+    var card = document.createElement('a');
+    card.className = 'card ' + (r.used ? 'on' : 'off');
+    card.href = '/' + encodeURIComponent(r.id);
+    card.dataset.id = r.id;
+
+    var color = (r.color && /^#[0-9a-f]{6}$/i.test(r.color)) ? r.color : '';
+    if(color){
+      card.classList.add('tinted');
+      card.style.setProperty('--c', color);
+    }
+
+    var badges = '<div class="badges">'
+      + (r.used ? '<span class="badge used">사용중</span>' : '<span class="badge free">빈방</span>')
+      + (r.locked ? '<span class="badge lock">비공개</span>' : '<span class="badge open">공개</span>')
+      + expBadge(r)
+      + '</div>';
+
+    var dot = color ? '<span class="dot" style="background:' + color + '"></span>' : '';
+    var html = '<h3>' + dot + esc(r.id) + '</h3>'
+      + '<p>' + descLine(r) + '</p>'
+      + badges
+      + (r.published ? '<div class="updated">업데이트 ' + esc(r.updated) + '</div>' : '');
+    card.innerHTML = html;
+
+    if(reorder){
+      card.draggable = true;
+      card.addEventListener('click', function(e){ e.preventDefault(); });
+      card.addEventListener('dragstart', onDragStart);
+      card.addEventListener('dragend', onDragEnd);
+    } else {
+      card.draggable = false;
+    }
+
+    if(manage){
+      var mgr = document.createElement('div');
+      mgr.className = 'mgr';
+      [['비우기', 'clear'], ['방 삭제', 'delete']].forEach(function(def){
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = def[0];
+        btn.addEventListener('click', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          destroyRoom(r, def[1]);
+        });
+        mgr.appendChild(btn);
+      });
+      card.appendChild(mgr);
+    }
+    return card;
+  }
+
   function render(){
     grid.innerHTML = '';
-    roomsCache.forEach(function (r) {
-      var card = document.createElement('a');
-      card.className = 'card ' + (r.used ? 'on' : 'off');
-      card.href = '/' + encodeURIComponent(r.id);
+    grid.classList.toggle('reorder', reorder);
+    var pos = Math.max(0, Math.min(dividerPos, roomsCache.length));
+    roomsCache.forEach(function (r, i) {
+      if(i === pos) grid.appendChild(makeDivider());
+      grid.appendChild(makeCard(r));
+    });
+    if(pos >= roomsCache.length) grid.appendChild(makeDivider());
+  }
 
-      var color = (r.color && /^#[0-9a-f]{6}$/i.test(r.color)) ? r.color : '';
-      if(color){
-        card.classList.add('tinted');
-        card.style.setProperty('--c', color);
-      }
+  // ----- 드래그 정렬 (정렬 모드에서만) -----
+  var dragId = null;
 
-      var badges = '<div class="badges">'
-        + (r.used ? '<span class="badge used">사용중</span>' : '<span class="badge free">빈방</span>')
-        + (r.locked ? '<span class="badge lock">비공개</span>' : '<span class="badge open">공개</span>')
-        + expBadge(r)
-        + '</div>';
+  function onDragStart(e){
+    dragId = this.dataset.id;
+    this.classList.add('dragging');
+    if(e.dataTransfer){ e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragId); } catch(_){} }
+  }
 
-      var dot = color ? '<span class="dot" style="background:' + color + '"></span>' : '';
-      var html = '<h3>' + dot + esc(r.id) + '</h3>'
-        + '<p>' + descLine(r) + '</p>'
-        + badges
-        + (r.published ? '<div class="updated">업데이트 ' + esc(r.updated) + '</div>' : '');
-      card.innerHTML = html;
+  function onDragEnd(){
+    dragId = null;
+    grid.querySelectorAll('.dragging').forEach(function(el){ el.classList.remove('dragging'); });
+    var d = grid.querySelector('.divider.drop-on');
+    if(d) d.classList.remove('drop-on');
+  }
 
-      if(manage){
-        var mgr = document.createElement('div');
-        mgr.className = 'mgr';
-        [['비우기', 'clear'], ['방 삭제', 'delete']].forEach(function(def){
-          var btn = document.createElement('button');
-          btn.type = 'button';
-          btn.textContent = def[0];
-          btn.addEventListener('click', function(e){
-            e.preventDefault();
-            e.stopPropagation();
-            destroyRoom(r, def[1]);
-          });
-          mgr.appendChild(btn);
-        });
-        card.appendChild(mgr);
-      }
-      grid.appendChild(card);
+  // 커서 위치 기준으로 "이 요소 앞에 끼워넣어야 한다"는 대상(카드 또는 구분선)을 찾는다.
+  function afterTarget(x, y){
+    var els = Array.prototype.slice.call(grid.querySelectorAll('.card:not(.dragging), .divider'));
+    var best = null, bestDist = Infinity;
+    els.forEach(function(el){
+      var b = el.getBoundingClientRect();
+      var cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+      var before = (y < cy - b.height / 2) || (Math.abs(y - cy) <= b.height / 2 && x < cx);
+      if(!before) return;
+      var dist = Math.hypot(x - cx, y - cy);
+      if(dist < bestDist){ bestDist = dist; best = el; }
+    });
+    return best; // null이면 맨 끝
+  }
+
+  grid.addEventListener('dragover', function(e){
+    if(!reorder || dragId === null) return;
+    e.preventDefault();
+    if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    var ref = afterTarget(e.clientX, e.clientY);
+    var dragEl = grid.querySelector('.dragging');
+    if(!dragEl) return;
+    if(ref === dragEl) return;
+    if(ref) grid.insertBefore(dragEl, ref);
+    else grid.appendChild(dragEl);
+    var div = grid.querySelector('.divider');
+    grid.querySelectorAll('.divider').forEach(function(d){ d.classList.remove('drop-on'); });
+    if(div && (ref === div || (dragEl.nextElementSibling === div) || (dragEl.previousElementSibling === div))) div.classList.add('drop-on');
+  });
+
+  grid.addEventListener('drop', function(e){
+    if(!reorder || dragId === null) return;
+    e.preventDefault();
+    saveLayout();
+  });
+
+  function readLayout(){
+    var order = [], pos = 0, sawDivider = false;
+    Array.prototype.slice.call(grid.children).forEach(function(el){
+      if(el.dataset.divider){ sawDivider = true; pos = order.length; }
+      else if(el.dataset.id){ order.push(el.dataset.id); }
+    });
+    if(!sawDivider) pos = order.length;
+    return { order: order, pos: pos };
+  }
+
+  function saveLayout(){
+    var lay = readLayout();
+    // 로컬 상태를 DOM 순서에 맞춰 갱신 (다음 render 대비)
+    var byId = {};
+    roomsCache.forEach(function(r){ byId[r.id] = r; });
+    roomsCache = lay.order.map(function(id){ return byId[id]; }).filter(Boolean);
+    dividerPos = lay.pos;
+    fetch('/api/rooms', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ order: lay.order, dividerPos: lay.pos })
+    }).then(function(r){
+      if(r.ok){ msg.className = 'status-msg'; msg.textContent = ''; return; }
+      msg.className = 'status-msg err';
+      msg.textContent = '정렬 저장 실패 (HTTP ' + r.status + ')';
+    }).catch(function(e){
+      msg.className = 'status-msg err';
+      msg.textContent = '정렬 저장 실패: ' + e.message;
     });
   }
 
@@ -292,6 +422,7 @@ section{margin-bottom:40px}
       })
       .then(function(data){
         roomsCache = data.rooms || [];
+        dividerPos = Number.isInteger(data.dividerPos) ? data.dividerPos : roomsCache.length;
         render();
         msg.className = 'status-msg';
         msg.textContent = '';
@@ -304,8 +435,19 @@ section{margin-bottom:40px}
 
   mgrBtn.addEventListener('click', function(){
     manage = !manage;
+    if(manage && reorder){ reorder = false; orderBtn.textContent = '정렬'; orderBtn.className = 'addbtn'; }
     mgrBtn.textContent = manage ? '관리 완료' : '관리';
     mgrBtn.className = manage ? 'addbtn on' : 'addbtn';
+    render();
+  });
+
+  orderBtn.addEventListener('click', function(){
+    reorder = !reorder;
+    if(reorder && manage){ manage = false; mgrBtn.textContent = '관리'; mgrBtn.className = 'addbtn'; }
+    orderBtn.textContent = reorder ? '정렬 완료' : '정렬';
+    orderBtn.className = reorder ? 'addbtn on' : 'addbtn';
+    msg.className = 'status-msg';
+    msg.textContent = reorder ? '카드를 끌어 구분선 위·아래로 옮겨보세요. 변경은 자동 저장됩니다.' : '';
     render();
   });
 
