@@ -134,9 +134,9 @@ section{margin-bottom:40px}
 .card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
-.card.dragging{opacity:.4;cursor:grabbing}
-.card.drag-over{outline:2px dashed var(--brand);outline-offset:2px}
-.card[draggable=true]{cursor:grab}
+.card.dragging{opacity:.35;cursor:grabbing}
+.card.drag-over{outline:2.5px dashed var(--brand);outline-offset:3px}
+.grid{user-select:none}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -281,7 +281,6 @@ section{margin-bottom:40px}
   var helpClose = document.getElementById('helpClose');
   var roomsCache = [];
   var manage = false;
-  var dragSrc = null;
   var ORDER_KEY = 'samsungda_room_order';
 
   function esc(s){
@@ -344,41 +343,6 @@ section{margin-bottom:40px}
         });
         card.appendChild(mgr);
       }
-      card.draggable = true;
-      card.addEventListener('dragstart', function(e){
-        dragSrc = card;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', r.id);
-        setTimeout(function(){ card.classList.add('dragging'); }, 0);
-      });
-      card.addEventListener('dragend', function(){
-        card.classList.remove('dragging');
-        dragSrc = null;
-        grid.querySelectorAll('.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
-      });
-      card.addEventListener('dragenter', function(e){
-        e.preventDefault();
-        if(dragSrc && dragSrc !== card) card.classList.add('drag-over');
-      });
-      card.addEventListener('dragover', function(e){
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      });
-      card.addEventListener('dragleave', function(e){
-        if(!card.contains(e.relatedTarget)) card.classList.remove('drag-over');
-      });
-      card.addEventListener('drop', function(e){
-        e.preventDefault();
-        card.classList.remove('drag-over');
-        if(!dragSrc || dragSrc === card) return;
-        var cards = Array.from(grid.children);
-        var fromIdx = cards.indexOf(dragSrc);
-        var toIdx = cards.indexOf(card);
-        if(fromIdx === -1 || toIdx === -1) return;
-        roomsCache.splice(toIdx, 0, roomsCache.splice(fromIdx, 1)[0]);
-        saveOrder();
-        render();
-      });
 
       grid.appendChild(card);
     });
@@ -403,6 +367,82 @@ section{margin-bottom:40px}
       roomsCache = ordered;
     }catch(e){}
   }
+
+  // 포인터 이벤트 기반 드래그앤드롭 (HTML5 DnD 대체 — <a> 태그에서 안정적)
+  (function(){
+    var active = null;
+    var isDragging = false;
+
+    function cardOf(el){
+      while(el && el !== grid){
+        if(el.parentNode === grid && el.classList && el.classList.contains('card')) return el;
+        el = el.parentNode;
+      }
+      return null;
+    }
+
+    function clearOver(){
+      Array.from(grid.querySelectorAll('.drag-over')).forEach(function(x){ x.classList.remove('drag-over'); });
+    }
+
+    grid.addEventListener('pointerdown', function(e){
+      if(e.pointerType === 'mouse' && e.button !== 0) return;
+      var card = cardOf(e.target);
+      if(!card) return;
+      active = card;
+      isDragging = false;
+    });
+
+    document.addEventListener('pointermove', function(e){
+      if(!active) return;
+      if(!isDragging){
+        isDragging = true;
+        active.classList.add('dragging');
+      }
+      active.style.pointerEvents = 'none';
+      var el = document.elementFromPoint(e.clientX, e.clientY);
+      active.style.pointerEvents = '';
+      clearOver();
+      var over = cardOf(el);
+      if(over && over !== active) over.classList.add('drag-over');
+    });
+
+    document.addEventListener('pointerup', function(e){
+      if(!active) return;
+      var src = active;
+      active = null;
+
+      if(!isDragging){ isDragging = false; return; }
+      isDragging = false;
+      e.preventDefault(); // click 이벤트 억제 (드래그 후 방 진입 방지)
+
+      src.classList.remove('dragging');
+      src.style.pointerEvents = 'none';
+      var el = document.elementFromPoint(e.clientX, e.clientY);
+      src.style.pointerEvents = '';
+      clearOver();
+
+      var over = cardOf(el);
+      if(over && over !== src){
+        var allCards = Array.from(grid.children);
+        var from = allCards.indexOf(src);
+        var to = allCards.indexOf(over);
+        if(from !== -1 && to !== -1){
+          roomsCache.splice(to, 0, roomsCache.splice(from, 1)[0]);
+          saveOrder();
+          render();
+        }
+      }
+    }, {capture: true});
+
+    document.addEventListener('pointercancel', function(){
+      if(!active) return;
+      active.classList.remove('dragging');
+      clearOver();
+      active = null;
+      isDragging = false;
+    });
+  })();
 
   function destroyRoom(r, mode){
     var q = mode === 'clear'
