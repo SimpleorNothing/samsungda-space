@@ -134,7 +134,9 @@ section{margin-bottom:40px}
 .card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
-.card.dragging{opacity:.35 !important;cursor:grabbing !important}
+.card{cursor:grab}
+.card.drag-placeholder{opacity:.25 !important;background:#e8ecf2 !important;border:2px dashed #b0b8c4 !important;box-shadow:none !important}
+.card.drag-ghost{opacity:.9 !important;box-shadow:0 8px 32px rgba(18,87,214,.22) !important;cursor:grabbing !important}
 .grid{user-select:none}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
@@ -375,14 +377,15 @@ section{margin-bottom:40px}
     if(sortable) sortable.destroy();
     sortable = Sortable.create(grid, {
       animation: 150,
-      ghostClass: 'dragging',
-      chosenClass: 'dragging',
-      dragClass: 'dragging',
-      forceFallback: true,   // HTML5 DnD 대신 포인터 이벤트 강제 사용 (<a> 충돌 방지)
-      fallbackClass: 'dragging',
+      ghostClass: 'drag-placeholder',  // 원본 자리 표시
+      dragClass: 'drag-ghost',          // 손에 들린 카드 (ghost clone)
+      forceFallback: true,
+      fallbackTolerance: 3,
       filter: '.mgr',
       preventOnFilter: false,
+      onStart: function(){ msg.textContent = '이동 중… 놓으면 순서가 변경됩니다.'; msg.className = 'status-msg'; },
       onEnd: function(evt){
+        msg.textContent = '';
         if(evt.oldIndex === evt.newIndex) return;
         roomsCache.splice(evt.newIndex, 0, roomsCache.splice(evt.oldIndex, 1)[0]);
         saveOrder();
