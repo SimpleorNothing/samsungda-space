@@ -22,7 +22,7 @@ body{
   padding:56px 24px;
 }
 .wrap{max-width:860px;margin:0 auto}
-h1{font-size:30px;font-weight:800;letter-spacing:-0.5px}
+h1{font-size:30px;font-weight:800;letter-spacing:-0.5px;line-height:1.2}
 .sub{font-size:15px;color:var(--muted);margin-top:6px}
 h2{font-size:20px;font-weight:700;letter-spacing:-0.3px}
 .desc{font-size:13px;color:var(--muted);margin-top:4px}
@@ -167,6 +167,10 @@ section{margin-bottom:40px}
 .grid-icon{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:22px;height:22px}
 .grid-icon span{background:var(--muted);border-radius:1.5px;transition:.15s}
 .launcher:hover .grid-icon span{background:var(--brand)}
+/* 제목(My Space) 행 — 런처를 h1 라인에 수평 정렬 + 높이 동일화 */
+.head-row--hero{align-items:flex-start}
+.head-row--hero .launcher{align-self:flex-start;height:36px;padding-top:0;padding-bottom:0}
+.head-row--hero .grid-icon{width:26px;height:26px}
 
 /* ───── 사용방법 모달 ───── */
 .modal-overlay{
@@ -222,7 +226,7 @@ section{margin-bottom:40px}
 <div class="wrap">
 
   <section>
-    <div class="section-head head-row">
+    <div class="section-head head-row head-row--hero">
       <div>
         <h1>My Space</h1>
         <p class="sub">빈방을 골라 들어가 메모나 파일, HTML을 올려 나만의 페이지로 만들고 공유하는 공간입니다.</p>
