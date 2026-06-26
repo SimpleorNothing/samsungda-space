@@ -164,6 +164,16 @@ section{margin-bottom:40px}
 .addbtn:hover{border-color:var(--brand);color:var(--brand)}
 .addbtn:disabled{opacity:.5;cursor:default}
 .addbtn.on{border-color:var(--brand);color:var(--brand);background:rgba(18,87,214,.06)}
+/* 도구모음 런처 (A안 · 라운드 7px · 바탕 투명) */
+.launcher{display:inline-flex;align-items:center;gap:8px;align-self:center;flex:none;
+  cursor:pointer;text-decoration:none;color:var(--text);
+  border:1.5px solid var(--border);background:transparent;border-radius:7px;
+  padding:9px 11px;transition:.15s;white-space:nowrap}
+.launcher:hover{border-color:var(--brand);box-shadow:0 4px 18px rgba(18,87,214,.10)}
+.launcher .label{font-size:13px;font-weight:600}
+.grid-icon{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:22px;height:22px}
+.grid-icon span{background:var(--muted);border-radius:1.5px;transition:.15s}
+.launcher:hover .grid-icon span{background:var(--brand)}
 @media (max-width:600px){
   body{padding:32px 16px}
   h1{font-size:25px}
@@ -177,9 +187,15 @@ section{margin-bottom:40px}
 <div class="wrap">
 
   <section>
-    <div class="section-head">
-      <h1>My Space</h1>
-      <p class="sub">누구나 자신의 HTML을 빈방에 올려 공유하는 공간입니다.</p>
+    <div class="section-head head-row">
+      <div>
+        <h1>My Space</h1>
+        <p class="sub">누구나 자신의 HTML을 빈방에 올려 공유하는 공간입니다.</p>
+      </div>
+      <a class="launcher" href="https://samsungda.net" title="도구모음 열기">
+        <span class="grid-icon"><span></span><span></span><span></span><span></span></span>
+        <span class="label">도구모음</span>
+      </a>
     </div>
   </section>
 
