@@ -142,11 +142,9 @@ section{margin-bottom:40px}
 /* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 카드를 끌어 위/아래로 옮길 수 있다. */
 .divider{
   grid-column:1 / -1;
-  display:flex;align-items:center;gap:12px;
-  margin:6px 0;color:var(--muted);font-size:12px;font-weight:600;
-  cursor:default;
+  height:0;border-top:2px dashed var(--border);
+  margin:6px 0;cursor:default;
 }
-.divider::before,.divider::after{content:"";flex:1;height:0;border-top:2px dashed var(--border)}
 .divider.drag-placeholder{opacity:.5 !important}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
@@ -326,7 +324,7 @@ section{margin-bottom:40px}
     var d = document.createElement('div');
     d.className = 'divider';
     d.dataset.divider = '1';
-    d.textContent = '구분선';
+    d.setAttribute('aria-hidden', 'true');
     return d;
   }
 
