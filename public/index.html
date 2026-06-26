@@ -137,6 +137,9 @@ section{margin-bottom:40px}
 .card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
+.card.dragging{opacity:.4;cursor:grabbing}
+.card.drag-over{outline:2px dashed var(--brand);outline-offset:2px}
+.card[draggable=true]{cursor:grab}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -191,6 +194,8 @@ section{margin-bottom:40px}
   var addBtn = document.getElementById('addRoomBtn');
   var roomsCache = [];
   var manage = false;
+  var dragSrc = null;
+  var ORDER_KEY = 'samsungda_room_order';
 
   function esc(s){
     return String(s || '').replace(/[&<>"']/g, function(c){
@@ -252,8 +257,64 @@ section{margin-bottom:40px}
         });
         card.appendChild(mgr);
       }
+      card.draggable = true;
+      card.addEventListener('dragstart', function(e){
+        dragSrc = card;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', r.id);
+      });
+      card.addEventListener('click', function(e){
+        if(card.classList.contains('dragging')) e.preventDefault();
+      });
+      card.addEventListener('dragend', function(){
+        card.classList.remove('dragging');
+        grid.querySelectorAll('.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+      });
+      card.addEventListener('dragover', function(e){
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if(dragSrc && dragSrc !== card){
+          card.classList.add('drag-over');
+        }
+      });
+      card.addEventListener('dragleave', function(){
+        card.classList.remove('drag-over');
+      });
+      card.addEventListener('drop', function(e){
+        e.preventDefault();
+        card.classList.remove('drag-over');
+        if(!dragSrc || dragSrc === card) return;
+        var cards = Array.from(grid.children);
+        var fromIdx = cards.indexOf(dragSrc);
+        var toIdx = cards.indexOf(card);
+        roomsCache.splice(toIdx, 0, roomsCache.splice(fromIdx, 1)[0]);
+        saveOrder();
+        render();
+      });
+
       grid.appendChild(card);
     });
+  }
+
+  function saveOrder(){
+    try{
+      var order = roomsCache.map(function(r){ return r.id; });
+      localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+    }catch(e){}
+  }
+
+  function applyOrder(){
+    try{
+      var saved = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null');
+      if(!Array.isArray(saved)) return;
+      var map = {};
+      roomsCache.forEach(function(r){ map[r.id] = r; });
+      var ordered = [];
+      saved.forEach(function(id){ if(map[id]){ ordered.push(map[id]); delete map[id]; } });
+      Object.values(map).forEach(function(r){ ordered.push(r); });
+      roomsCache = ordered;
+    }catch(e){}
   }
 
   function destroyRoom(r, mode){
@@ -292,6 +353,7 @@ section{margin-bottom:40px}
       })
       .then(function(data){
         roomsCache = data.rooms || [];
+        applyOrder();
         render();
         msg.className = 'status-msg';
         msg.textContent = '';
