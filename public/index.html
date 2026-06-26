@@ -134,8 +134,7 @@ section{margin-bottom:40px}
 .card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
-.card.dragging{opacity:.35;cursor:grabbing}
-.card.drag-over{outline:2.5px dashed var(--brand);outline-offset:3px}
+.card.dragging{opacity:.35 !important;cursor:grabbing !important}
 .grid{user-select:none}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
@@ -270,6 +269,7 @@ section{margin-bottom:40px}
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script>
 (function(){
   var grid = document.getElementById('roomGrid');
@@ -346,6 +346,7 @@ section{margin-bottom:40px}
 
       grid.appendChild(card);
     });
+    initSortable();
   }
 
   function saveOrder(){
@@ -368,88 +369,23 @@ section{margin-bottom:40px}
     }catch(e){}
   }
 
-  // 포인터 이벤트 기반 드래그앤드롭
-  (function(){
-    var active = null, startX = 0, startY = 0, isDragging = false;
-    var THRESH = 8; // 드래그로 인식하는 최소 이동 거리(px)
-
-    function cardOf(el){
-      while(el && el !== grid){
-        if(el.parentNode === grid && el.classList && el.classList.contains('card')) return el;
-        el = el.parentNode;
-      }
-      return null;
-    }
-
-    function clearOver(){
-      Array.from(grid.querySelectorAll('.drag-over')).forEach(function(x){ x.classList.remove('drag-over'); });
-    }
-
-    grid.addEventListener('pointerdown', function(e){
-      if(e.pointerType === 'mouse' && e.button !== 0) return;
-      if(e.target.closest && e.target.closest('.mgr')) return; // 관리 버튼 제외
-      var card = cardOf(e.target);
-      if(!card) return;
-      e.preventDefault(); // <a> 기본 드래그·텍스트선택 방지 (클릭은 pointerup에서 수동 처리)
-      active = card;
-      startX = e.clientX;
-      startY = e.clientY;
-      isDragging = false;
-    });
-
-    document.addEventListener('pointermove', function(e){
-      if(!active) return;
-      var dx = e.clientX - startX, dy = e.clientY - startY;
-      if(!isDragging){
-        if(dx*dx + dy*dy < THRESH*THRESH) return; // 임계값 미달 — 드래그 아직 시작 안 함
-        isDragging = true;
-        active.classList.add('dragging');
-      }
-      active.style.pointerEvents = 'none';
-      var el = document.elementFromPoint(e.clientX, e.clientY);
-      active.style.pointerEvents = '';
-      clearOver();
-      var over = cardOf(el);
-      if(over && over !== active) over.classList.add('drag-over');
-    });
-
-    document.addEventListener('pointerup', function(e){
-      if(!active) return;
-      var src = active;
-      active = null;
-
-      if(!isDragging){
-        // 클릭 — pointerdown에서 preventDefault했으므로 직접 이동
-        window.location.href = src.href;
-        return;
-      }
-      isDragging = false;
-      src.classList.remove('dragging');
-      src.style.pointerEvents = 'none';
-      var el = document.elementFromPoint(e.clientX, e.clientY);
-      src.style.pointerEvents = '';
-      clearOver();
-      var over = cardOf(el);
-      if(over && over !== src){
-        var all = Array.from(grid.children);
-        var from = all.indexOf(src);
-        var to = all.indexOf(over);
-        if(from !== -1 && to !== -1){
-          roomsCache.splice(to, 0, roomsCache.splice(from, 1)[0]);
-          saveOrder();
-          render();
-        }
+  var sortable = null;
+  function initSortable(){
+    if(sortable) sortable.destroy();
+    sortable = Sortable.create(grid, {
+      animation: 150,
+      ghostClass: 'dragging',
+      chosenClass: 'dragging',
+      dragClass: 'dragging',
+      filter: '.mgr',
+      preventOnFilter: false,
+      onEnd: function(evt){
+        if(evt.oldIndex === evt.newIndex) return;
+        roomsCache.splice(evt.newIndex, 0, roomsCache.splice(evt.oldIndex, 1)[0]);
+        saveOrder();
       }
     });
-
-    document.addEventListener('pointercancel', function(){
-      if(!active) return;
-      active.classList.remove('dragging');
-      clearOver();
-      active = null;
-      isDragging = false;
-    });
-  })();
+  }
 
   function destroyRoom(r, mode){
     var q = mode === 'clear'
