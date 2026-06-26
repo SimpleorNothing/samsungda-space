@@ -4,6 +4,17 @@
 Cloudflare Pages + Pages Functions + R2. GreenNote와 동일 아키텍처.
 디자인은 `space-prototype.html` 프로토타입을 그대로 따른다.
 
+> 🧭 **기획 도구 모음**(`samsungda.net`) 생태계의 일부입니다 — 허브 레포: [`samsungda-portal`](https://github.com/SimpleorNothing/samsungda-portal)
+
+| 도구 | 진입 | 레포 |
+|------|------|------|
+| 클로드로 워드보고서 작성하기 | `samsungda.net/agent-guide` | `report-site` |
+| 보고서 자판기 | `samsungda.net/report` | `report-site` |
+| Market Insight | `mi.samsungda.net` | `market-insight` |
+| 2030 미래 트렌드 | `samsungda.net/2030` | `(외부 연동)` |
+| Quick Share | `quickshare.samsungda.net` | `QuickShare` |
+| My Space | `space.samsungda.net` | `samsungda-space` ◀ **현재 레포** |
+
 ## URL 구조
 
 | 경로 | 내용 |
