@@ -49,6 +49,32 @@ export function roomExists(index, id) {
   return allRooms(index).indexOf(id) !== -1;
 }
 
+// 로비 표시 순서 — 저장된 사용자 정렬(index.order)을 현재 방 목록에 적용한다.
+// order에 있지만 더 이상 없는 방은 무시하고, order에 없는(새로 생긴) 방은 뒤에 붙인다.
+export function orderedRooms(index) {
+  const base = allRooms(index);
+  const order = (index && Array.isArray(index.order)) ? index.order : [];
+  const baseSet = Object.create(null);
+  base.forEach(function (id) { baseSet[id] = true; });
+  const placed = Object.create(null);
+  const list = [];
+  order.forEach(function (id) {
+    if (baseSet[id] && !placed[id]) { placed[id] = true; list.push(id); }
+  });
+  base.forEach(function (id) {
+    if (!placed[id]) { placed[id] = true; list.push(id); }
+  });
+  return list;
+}
+
+// 구분선 위치 — 위쪽에 놓인 방 개수. 저장값이 없으면 전부 위(구분선은 맨 아래).
+export function dividerPos(index, total) {
+  let pos = (index && Number.isInteger(index.dividerPos)) ? index.dividerPos : total;
+  if (pos < 0) pos = 0;
+  if (pos > total) pos = total;
+  return pos;
+}
+
 export async function sha256(text) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf)).map(function (b) {

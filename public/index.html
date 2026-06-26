@@ -30,6 +30,23 @@ section{margin-bottom:40px}
 .section-head{margin-bottom:16px}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:600px){.grid{grid-template-columns:1fr}}
+
+/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 위/아래로 방을 나눈다. */
+.divider{
+  grid-column:1 / -1;
+  display:flex;align-items:center;gap:12px;
+  margin:6px 0;color:var(--muted);font-size:12px;font-weight:600;
+}
+.divider::before,.divider::after{content:"";flex:1;height:0;border-top:2px dashed var(--border)}
+.grid.reorder .divider{color:var(--brand)}
+.grid.reorder .divider::before,.grid.reorder .divider::after{border-top-color:var(--brand)}
+
+/* 정렬 모드 — 카드를 끌어 구분선 위/아래로 옮길 수 있다. */
+.grid.reorder .card{cursor:grab}
+.grid.reorder .card:active{cursor:grabbing}
+.card.dragging{opacity:.45}
+.grid.reorder .divider.drop-on{color:var(--brand)}
+.grid.reorder .divider.drop-on::before,.grid.reorder .divider.drop-on::after{border-top-style:solid}
 .card{
   display:block;
   min-width:0;
@@ -299,6 +316,7 @@ section{margin-bottom:40px}
   var helpModal = document.getElementById('helpModal');
   var helpClose = document.getElementById('helpClose');
   var roomsCache = [];
+  var dividerPos = 0;
   var manage = false;
   var dividerPos = 0;
   var ORDER_KEY = 'samsungda_room_order';
@@ -513,6 +531,16 @@ section{margin-bottom:40px}
     manage = !manage;
     mgrBtn.textContent = manage ? '관리 완료' : '방 관리';
     mgrBtn.className = manage ? 'addbtn on' : 'addbtn';
+    render();
+  });
+
+  orderBtn.addEventListener('click', function(){
+    reorder = !reorder;
+    if(reorder && manage){ manage = false; mgrBtn.textContent = '관리'; mgrBtn.className = 'addbtn'; }
+    orderBtn.textContent = reorder ? '정렬 완료' : '정렬';
+    orderBtn.className = reorder ? 'addbtn on' : 'addbtn';
+    msg.className = 'status-msg';
+    msg.textContent = reorder ? '카드를 끌어 구분선 위·아래로 옮겨보세요. 변경은 자동 저장됩니다.' : '';
     render();
   });
 
