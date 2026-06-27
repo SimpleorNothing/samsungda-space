@@ -30,8 +30,6 @@ section{margin-bottom:40px}
 .section-head{margin-bottom:16px}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:600px){.grid{grid-template-columns:1fr}}
-
-/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 위/아래로 방을 나눈다. */
 .divider{
   grid-column:1 / -1;
   display:flex;align-items:center;gap:12px;
@@ -40,8 +38,6 @@ section{margin-bottom:40px}
 .divider::before,.divider::after{content:"";flex:1;height:0;border-top:2px dashed var(--border)}
 .grid.reorder .divider{color:var(--brand)}
 .grid.reorder .divider::before,.grid.reorder .divider::after{border-top-color:var(--brand)}
-
-/* 정렬 모드 — 카드를 끌어 구분선 위/아래로 옮길 수 있다. */
 .grid.reorder .card{cursor:grab}
 .grid.reorder .card:active{cursor:grabbing}
 .card.dragging{opacity:.45}
@@ -60,7 +56,6 @@ section{margin-bottom:40px}
   color:inherit;
 }
 .card:hover{border-color:var(--brand);box-shadow:0 4px 18px rgba(18,87,214,.10)}
-/* 테마 색 설정된 방 — 카드 전체에 해당 색 틴트 (카드별 --c 변수) */
 .card.tinted{background:color-mix(in srgb, var(--c) 6%, #fff);border-color:color-mix(in srgb, var(--c) 30%, #fff)}
 .card.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 .card.tinted h3{color:var(--c)}
@@ -94,12 +89,6 @@ section{margin-bottom:40px}
   padding:5px 12px;cursor:pointer;transition:.15s;
 }
 .mgr button:hover{background:#ffe1e1;color:#c0392b;border-color:#ffe1e1}
-
-/* ───── 불 꺼짐/켜짐 상태 (빈방=off · 사용중=on) ─────
-   .tinted보다 뒤에 선언해 상태가 틴트를 덮어쓰되,
-   테마색이 지정된 방은 빈방·사용중 모두 그 방의 색으로 카드 전체를 틴트 */
-
-/* 빈방 — 불 꺼진 방 (채도 제거 + 한 단계 어둡게) */
 .card.off{background:#eceef1;border-color:#e0e3e8}
 .card.off h3{color:#9aa1ab}
 .card.off h3::after{opacity:.3}
@@ -110,8 +99,6 @@ section{margin-bottom:40px}
 .card.off .updated,.card.off .mgr{border-color:#dfe2e7}
 .card.off:hover{border-color:#c8cdd5;box-shadow:0 4px 18px rgba(90,100,115,.10)}
 .card.off:hover h3::after{opacity:.55}
-
-/* 사용중 — 불 켜진 방 (위에서 퍼지는 크림 글로우) */
 .card.on{
   background:radial-gradient(120% 90% at 50% 0%,
     rgba(255,214,120,.35) 0%,
@@ -125,8 +112,6 @@ section{margin-bottom:40px}
 .card.on .updated{border-color:#f0e3bd}
 .card.on .mgr{border-color:#f0e3bd}
 .card.on:hover{border-color:#e9c463;box-shadow:0 6px 26px rgba(255,176,46,.24)}
-
-/* 사용중 + 테마색 — 그 방의 색으로 불이 켜짐 */
 .card.on.tinted{
   background:radial-gradient(120% 90% at 50% 0%,
     color-mix(in srgb, var(--c) 22%, #fff) 0%,
@@ -139,8 +124,6 @@ section{margin-bottom:40px}
 .card.on.tinted .badge.used{background:color-mix(in srgb, var(--c) 12%, #fff);color:var(--c)}
 .card.on.tinted .updated,.card.on.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.on.tinted:hover{border-color:var(--c);box-shadow:0 6px 26px color-mix(in srgb, var(--c) 26%, transparent)}
-
-/* 빈방 + 테마색 — 방 색으로 카드 전체를 틴트 */
 .card.off.tinted{
   background:color-mix(in srgb, var(--c) 8%, #fff);
   border-color:color-mix(in srgb, var(--c) 30%, #fff);
@@ -153,7 +136,6 @@ section{margin-bottom:40px}
 .card.off.tinted .badge.exp{background:color-mix(in srgb, var(--c) 12%, #fff);color:color-mix(in srgb, var(--c) 65%, #5b6470)}
 .card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
-
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -303,7 +285,6 @@ section{margin-bottom:40px}
     if(pos >= roomsCache.length) grid.appendChild(makeDivider());
   }
 
-  // ----- 드래그 정렬 (정렬 모드에서만) -----
   var dragId = null;
 
   function onDragStart(e){
@@ -319,7 +300,6 @@ section{margin-bottom:40px}
     if(d) d.classList.remove('drop-on');
   }
 
-  // 커서 위치 기준으로 "이 요소 앞에 끼워넣어야 한다"는 대상(카드 또는 구분선)을 찾는다.
   function afterTarget(x, y){
     var els = Array.prototype.slice.call(grid.querySelectorAll('.card:not(.dragging), .divider'));
     var best = null, bestDist = Infinity;
@@ -331,7 +311,7 @@ section{margin-bottom:40px}
       var dist = Math.hypot(x - cx, y - cy);
       if(dist < bestDist){ bestDist = dist; best = el; }
     });
-    return best; // null이면 맨 끝
+    return best;
   }
 
   grid.addEventListener('dragover', function(e){
@@ -367,7 +347,6 @@ section{margin-bottom:40px}
 
   function saveLayout(){
     var lay = readLayout();
-    // 로컬 상태를 DOM 순서에 맞춰 갱신 (다음 render 대비)
     var byId = {};
     roomsCache.forEach(function(r){ byId[r.id] = r; });
     roomsCache = lay.order.map(function(id){ return byId[id]; }).filter(Boolean);
@@ -475,5 +454,6 @@ section{margin-bottom:40px}
   loadRooms();
 })();
 </script>
+<script defer src="/update-badge.js" data-src="/version.json"></script>
 </body>
 </html>
