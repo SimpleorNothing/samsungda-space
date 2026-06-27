@@ -68,3 +68,30 @@ rooms/A-1/page.html     # 게시된 HTML 원본
 - 업로드 한도 5MB (`functions/api/room/[room]/index.js`의 `MAX_HTML_BYTES`)
 - 방 구성 변경: `functions/_lib.js` 상단 `ROOMS` 배열만 수정
 - 사내 한정 공개가 필요하면 Cloudflare Zero Trust Access를 `space.samsungda.net`에 적용
+
+## 개발·배포 안전장치 (CI)
+
+`main`은 곧 production(`space.samsungda.net`) 입니다. Cloudflare Pages의 "배포 성공(초록 체크)"은
+**파일 업로드 성공**일 뿐 JS가 실제로 동작하는지는 검사하지 않습니다. 그래서 한 번,
+서로 다른 갈래가 같은 기능을 다르게 구현한 것이 자동병합으로 **충돌 없이 뒤섞여**
+존재하지 않는 변수를 참조하는 코드가 만들어졌고(인라인 스크립트가 통째로 중단되어
+방 목록이 "불러오는 중…"에서 멈춤), 그대로 배포된 사고가 있었습니다.
+
+이를 막기 위해 **PR 단계 자동 검증 게이트**(`.github/workflows/ci.yml`)를 둡니다:
+
+- **ESLint `no-undef`/`no-redeclare`** — `public/**/*.html`의 인라인 스크립트까지 검사해
+  *선언 없이 쓰는 변수*(위 사고의 직접 원인)·*중복 선언*을 차단 (`eslint.config.js`)
+- **`node --check`** — 모든 Pages Functions 모듈 문법 검사
+- **병합 충돌 마커 검사** — `<<<<<<<` 등이 남은 채 머지되는 것 차단
+
+> ⚠️ **권장:** GitHub → Settings → Branches에서 `main`에 **Branch protection**을 걸고
+> `CI / verify` 통과를 머지 필수 조건으로 지정하세요. 그래야 검사가 빨간 PR이
+> production으로 머지되는 것을 *강제로* 막을 수 있습니다.
+
+### 기여 규칙 — 사고 재발 방지
+
+- **한 기능 = 한 구현.** 같은 기능(예: 로비 구분선/정렬)을 여러 갈래에서 다르게
+  재구현하지 마세요. 자동병합이 둘을 뒤섞는 사고의 근원입니다.
+- 작업 전 `main`에서 분기하고, 머지 전 `main`을 다시 반영(rebase/merge)해 **로컬에서
+  `npx eslint public functions` 가 통과하는지** 확인하세요.
+- 다 쓴 기능 브랜치는 머지 후 삭제해, 다음 머지 때 옛 코드가 섞이지 않게 합니다.
