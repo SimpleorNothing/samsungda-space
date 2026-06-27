@@ -1,0 +1,58 @@
+name: CI
+
+# 배포 전 자동 검증 게이트.
+# main 으로 가는 모든 PR과 push에서 실행되어, "런타임에 깨지는 코드"가
+# 그대로 Cloudflare Pages 로 배포되는 것을 막는다.
+#
+# 막으려는 사고(실제 발생함):
+#   서로 다른 갈래가 같은 기능을 다르게 구현 → git 자동병합이 서로 다른 줄이라
+#   충돌 없이 양쪽을 뒤섞음 → 존재하지 않는 변수(orderBtn) 참조 코드가 생성 →
+#   인라인 스크립트가 ReferenceError 로 통째 중단 → 방 목록 "불러오는 중…" 멈춤.
+#   CF Pages 는 JS 동작을 검사하지 않아 깨진 채 배포(초록 체크)됨.
+#
+# 이 게이트는 그 코드를 PR 단계에서 잡아 머지를 막는다.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 병합 충돌 마커가 남은 채 커밋된 경우 차단
+      - name: 병합 충돌 마커 검사
+        run: |
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- 'public/**' 'functions/**'; then
+            echo "::error::병합 충돌 마커가 남아 있습니다."
+            exit 1
+          fi
+          echo "OK: 충돌 마커 없음"
+
+      # Pages Functions(ES 모듈) 문법 검사 — 의존성 없이 빠르게
+      - name: Functions 문법 검사 (node --check)
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            if node --check --input-type=module < "$f"; then
+              echo "OK   $f"
+            else
+              echo "::error file=$f::문법 오류"; fail=1
+            fi
+          done < <(find functions -name '*.js' -type f)
+          exit $fail
+
+      # ESLint — 핵심: 인라인 로비 스크립트의 미선언 참조(no-undef)·중복 선언(no-redeclare) 차단
+      - name: ESLint 설치 (CI 전용, 저장소에 package.json 추가하지 않음)
+        run: npm install --no-save --no-audit --no-fund eslint@9 eslint-plugin-html@8 globals@15
+
+      - name: ESLint 실행
+        run: npx eslint public functions
