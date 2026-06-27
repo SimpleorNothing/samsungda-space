@@ -305,7 +305,7 @@ section{margin-bottom:40px}
   </div>
 </div>
 
-<script src="/sortable.min.js"></script>
+<script src="/sortable.min.js" defer></script>
 <script>
 (function(){
   var grid = document.getElementById('roomGrid');
@@ -448,6 +448,8 @@ section{margin-bottom:40px}
 
   var sortable = null;
   function initSortable(){
+    // sortable.min.js 로드 실패 시에도 방 목록 자체는 정상 표시 — 드래그 정렬만 비활성화
+    if(typeof Sortable === 'undefined') return;
     if(sortable) sortable.destroy();
     sortable = Sortable.create(grid, {
       animation: 150,
@@ -496,8 +498,12 @@ section{margin-bottom:40px}
   }
 
   function loadRooms(){
-    fetch('/api/rooms')
+    // 응답이 멈춰도 영영 "불러오는 중…"에 머물지 않도록 타임아웃을 둔다.
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = setTimeout(function(){ if(ctrl) ctrl.abort(); }, 12000);
+    fetch('/api/rooms', ctrl ? { signal: ctrl.signal } : undefined)
       .then(function(r){
+        clearTimeout(timer);
         if(!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })
@@ -510,8 +516,10 @@ section{margin-bottom:40px}
         msg.textContent = '';
       })
       .catch(function(e){
+        clearTimeout(timer);
+        var why = (e && e.name === 'AbortError') ? '응답 시간이 초과되었습니다' : e.message;
         msg.className = 'status-msg err';
-        msg.textContent = '방 목록을 불러오지 못했습니다: ' + e.message;
+        msg.textContent = '방 목록을 불러오지 못했습니다: ' + why + ' — 새로고침해 주세요.';
       });
   }
 
