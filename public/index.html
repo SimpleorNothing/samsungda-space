@@ -124,8 +124,8 @@ section{margin-bottom:40px}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
 .card{cursor:grab}
-.card.drag-placeholder{opacity:.25 !important;background:#e8ecf2 !important;border:2px dashed #b0b8c4 !important;box-shadow:none !important}
-.card.drag-ghost{opacity:.9 !important;box-shadow:0 8px 32px rgba(18,87,214,.22) !important;cursor:grabbing !important}
+.card.dragging{opacity:.4}
+.grid.dragging-active,.grid.dragging-active .card{cursor:grabbing}
 .grid{user-select:none}
 
 /* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 카드를 끌어 위/아래로 옮길 수 있다. */
@@ -134,7 +134,7 @@ section{margin-bottom:40px}
   height:0;border-top:1px solid var(--border);
   margin:6px 0;cursor:default;
 }
-.divider.drag-placeholder{opacity:.5 !important}
+.divider.drag-over{border-top-color:var(--brand) !important;border-top-width:2px !important}
 .status-msg{font-size:13px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -277,7 +277,6 @@ section{margin-bottom:40px}
   </div>
 </div>
 
-<script src="/sortable.min.js" defer></script>
 <script>
 (function(){
   var grid = document.getElementById('roomGrid');
@@ -328,7 +327,7 @@ section{margin-bottom:40px}
       card.className = 'card ' + (r.used ? 'on' : 'off');
       card.href = '/' + encodeURIComponent(r.id);
       card.dataset.id = r.id;
-      // <a> 기본 드래그(링크 끌기)가 SortableJS 폴백 드래그를 가로채지 못하게 막는다.
+      // <a> 기본 '링크 끌기'가 발동하면 포인터 드래그가 pointercancel로 끊긴다 → 비활성화.
       card.draggable = false;
 
       var color = (r.color && /^#[0-9a-f]{6}$/i.test(r.color)) ? r.color : '';
@@ -370,7 +369,6 @@ section{margin-bottom:40px}
       grid.appendChild(card);
     });
     if(pos >= roomsCache.length) grid.appendChild(makeDivider());
-    setTimeout(initSortable, 0);
   }
 
   // 드래그 후 DOM 순서를 읽어 방 순서·구분선 위치를 동기화
@@ -419,28 +417,99 @@ section{margin-bottom:40px}
     }catch(e){}
   }
 
-  var sortable = null;
-  function initSortable(){
-    // sortable.min.js 로드 실패 시에도 방 목록 자체는 정상 표시 — 드래그 정렬만 비활성화
-    if(typeof Sortable === 'undefined') return;
-    if(sortable) sortable.destroy();
-    sortable = Sortable.create(grid, {
-      animation: 150,
-      ghostClass: 'drag-placeholder',  // 원본 자리 표시
-      dragClass: 'drag-ghost',          // 손에 들린 카드 (ghost clone)
-      forceFallback: true,
-      fallbackTolerance: 3,
-      filter: '.mgr, .divider',  // 구분선은 고정 — 카드만 끌어 위/아래로 이동
-      preventOnFilter: false,
-      onStart: function(){ msg.textContent = '이동 중… 구분선 위/아래로 옮길 수 있어요.'; msg.className = 'status-msg'; },
-      onEnd: function(){
-        msg.textContent = '';
-        syncFromDom();   // DOM 순서 기준으로 방 순서·구분선 위치 재계산
+  // ----- 포인터 기반 드래그 정렬 -----
+  // 카드가 <a> 링크라서, 끌면 브라우저 기본 '링크 끌기'가 발동해 정렬 드래그를 가로챈다.
+  // 이를 피하려고 HTML5 드래그(SortableJS 폴백) 대신 포인터 이벤트로 직접 옮긴다.
+  // 살짝 누른 뒤 일정 거리 이상 움직여야 드래그로 인식하므로, 그냥 클릭하면 방으로 들어간다.
+  var DRAG_THRESHOLD = 5;     // 이 거리(px) 넘게 움직여야 드래그 시작
+  var press = null;           // { el, pid, x0, y0, dragging }
+  var suppressClick = false;  // 드래그 직후 따라오는 클릭(방 이동) 1회 무시
+
+  function clearDividerMark(){
+    var d = grid.querySelector('.divider.drag-over');
+    if(d) d.classList.remove('drag-over');
+  }
+
+  // 커서 위치 기준으로 "이 요소 앞에 끼워넣어야 한다"는 대상(카드 또는 구분선)을 찾는다.
+  function afterTarget(x, y){
+    var els = Array.prototype.slice.call(grid.querySelectorAll('.card:not(.dragging), .divider'));
+    var best = null, bestDist = Infinity;
+    els.forEach(function(el){
+      var b = el.getBoundingClientRect();
+      var cx = b.left + b.width/2, cy = b.top + b.height/2;
+      var before = (y < cy - b.height/2) || (Math.abs(y - cy) <= b.height/2 && x < cx);
+      if(!before) return;
+      var dist = Math.hypot(x - cx, y - cy);
+      if(dist < bestDist){ bestDist = dist; best = el; }
+    });
+    return best; // null이면 맨 끝
+  }
+
+  grid.addEventListener('pointerdown', function(e){
+    suppressClick = false;
+    if(e.button !== 0 || e.pointerType === 'touch') return; // 마우스·펜만, 터치는 스크롤 보존
+    var card = e.target.closest ? e.target.closest('.card') : null;
+    if(!card || !grid.contains(card)) return;
+    if(e.target.closest('.mgr')) return;                    // 관리 버튼은 드래그 제외
+    press = { el: card, pid: e.pointerId, x0: e.clientX, y0: e.clientY, dragging: false };
+  });
+
+  document.addEventListener('pointermove', function(e){
+    if(!press || e.pointerId !== press.pid) return;
+    if(!press.dragging){
+      if(Math.hypot(e.clientX - press.x0, e.clientY - press.y0) < DRAG_THRESHOLD) return;
+      press.dragging = true;
+      press.el.classList.add('dragging');
+      grid.classList.add('dragging-active');
+      try { press.el.setPointerCapture(press.pid); } catch(_){}
+      msg.className = 'status-msg';
+      msg.textContent = '이동 중… 구분선 위/아래로 옮길 수 있어요.';
+    }
+    e.preventDefault();
+    var dragEl = press.el;
+    var ref = afterTarget(e.clientX, e.clientY);
+    if(ref !== dragEl){
+      if(ref) grid.insertBefore(dragEl, ref);
+      else grid.appendChild(dragEl);
+    }
+    clearDividerMark();
+    var div = grid.querySelector('.divider');
+    if(div && (dragEl.nextElementSibling === div || dragEl.previousElementSibling === div)) div.classList.add('drag-over');
+  });
+
+  function endPress(commit){
+    if(!press) return;
+    var was = press.dragging;
+    if(was){
+      press.el.classList.remove('dragging');
+      grid.classList.remove('dragging-active');
+      clearDividerMark();
+      msg.textContent = '';
+    }
+    press = null;
+    if(was){
+      suppressClick = true;       // 방금 끝난 드래그의 클릭은 방 이동으로 처리하지 않음
+      if(commit){
+        syncFromDom();            // DOM 순서 기준으로 방 순서·구분선 위치 재계산
         saveOrder();
         saveDivider();
       }
-    });
+    }
   }
+
+  document.addEventListener('pointerup', function(e){
+    if(!press || e.pointerId !== press.pid) return;
+    endPress(true);
+  });
+  document.addEventListener('pointercancel', function(e){
+    if(!press || e.pointerId !== press.pid) return;
+    endPress(false);
+  });
+
+  // 드래그 직후 따라오는 클릭 1회를 가로채 방 이동을 막는다.
+  grid.addEventListener('click', function(e){
+    if(suppressClick){ e.preventDefault(); e.stopPropagation(); suppressClick = false; }
+  }, true);
 
   function destroyRoom(r, mode){
     var q = mode === 'clear'
