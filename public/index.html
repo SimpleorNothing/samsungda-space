@@ -328,6 +328,8 @@ section{margin-bottom:40px}
       card.className = 'card ' + (r.used ? 'on' : 'off');
       card.href = '/' + encodeURIComponent(r.id);
       card.dataset.id = r.id;
+      // <a> 기본 드래그(링크 끌기)가 SortableJS 폴백 드래그를 가로채지 못하게 막는다.
+      card.draggable = false;
 
       var color = (r.color && /^#[0-9a-f]{6}$/i.test(r.color)) ? r.color : '';
       if(color){
