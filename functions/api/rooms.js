@@ -6,8 +6,8 @@
 //                     mode 'delete' → 데이터 삭제 + 방을 목록에서 제거 (시드 방은 index.removed에 기록)
 //                     비공개 방은 x-room-password 헤더 또는 인증 쿠키 필요
 import {
-  ROOMS, allRooms, orderedRooms, dividerPos, isValidRoomId, roomExists,
-  readIndex, writeIndex, isAuthorized, todayKST, json,
+  ROOMS, allRooms, isValidRoomId, roomExists, readIndex, writeIndex,
+  isAuthorized, todayKST, json,
 } from '../_lib.js';
 
 // 신규 방 기본 사용기한: 생성일 + 1개월 (KST 기준)
@@ -21,7 +21,7 @@ function oneMonthLater() {
 
 export async function onRequestGet(context) {
   const index = await readIndex(context.env);
-  const ids = orderedRooms(index);
+  const ids = allRooms(index);
   const today = todayKST();
 
   // 메모·파일 존재 여부 — notes.json은 마지막 메모 삭제 시 함께 삭제되므로 존재 = 메모 있음
@@ -39,7 +39,7 @@ export async function onRequestGet(context) {
       used: published || hasNotes,
       published: published,
       title: published ? (meta.title || '') : '',
-      updated: published ? String(meta.updatedAt || '').slice(0, 10) : '',
+      updated: meta ? String(meta.updatedAt || '').slice(0, 10) : '',
       locked: !!(meta && meta.passwordHash),
       color: (meta && meta.color) || null,
       expiresAt: expiresAt,
@@ -47,34 +47,7 @@ export async function onRequestGet(context) {
       seed: ROOMS.indexOf(id) !== -1,
     };
   });
-  return json({ rooms: rooms, dividerPos: dividerPos(index, ids.length) });
-}
-
-// PUT /api/rooms — 로비 표시 순서·구분선 위치 저장. body { order: [...id], dividerPos: N }
-//                  order의 N개까지가 구분선 위, 나머지는 아래.
-export async function onRequestPut(context) {
-  let body;
-  try { body = await context.request.json(); } catch (e) { return json({ error: 'invalid body' }, 400); }
-
-  const index = await readIndex(context.env);
-  const valid = Object.create(null);
-  allRooms(index).forEach(function (id) { valid[id] = true; });
-
-  const seen = Object.create(null);
-  const order = (Array.isArray(body.order) ? body.order : []).filter(function (id) {
-    if (typeof id !== 'string' || !valid[id] || seen[id]) return false;
-    seen[id] = true;
-    return true;
-  });
-
-  let pos = Number.isInteger(body.dividerPos) ? body.dividerPos : order.length;
-  if (pos < 0) pos = 0;
-  if (pos > order.length) pos = order.length;
-
-  index.order = order;
-  index.dividerPos = pos;
-  await writeIndex(context.env, index);
-  return json({ ok: true });
+  return json({ rooms: rooms });
 }
 
 export async function onRequestPost(context) {
