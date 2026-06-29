@@ -18,14 +18,14 @@
 body{
   background:var(--bg);
   color:var(--text);
-  font-family:'Pretendard',system-ui,-apple-system,'Segoe UI',Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   padding:56px 24px;
 }
 .wrap{max-width:860px;margin:0 auto}
 h1{font-size:30px;font-weight:800;letter-spacing:-0.5px}
 .sub{font-size:15px;color:var(--muted);margin-top:6px}
 h2{font-size:20px;font-weight:700;letter-spacing:-0.3px}
-.desc{font-size:13px;color:var(--muted);margin-top:4px}
+.desc{font-size:15px;color:var(--muted);margin-top:4px}
 section{margin-bottom:40px}
 .section-head{margin-bottom:16px}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
@@ -35,7 +35,7 @@ section{margin-bottom:40px}
 .divider{
   grid-column:1 / -1;
   display:flex;align-items:center;gap:12px;
-  margin:6px 0;color:var(--muted);font-size:12px;font-weight:600;
+  margin:6px 0;color:var(--muted);font-size:15px;font-weight:600;
 }
 .divider::before,.divider::after{content:"";flex:1;height:0;border-top:2px dashed var(--border)}
 .grid.reorder .divider{color:var(--brand)}
@@ -68,12 +68,12 @@ section{margin-bottom:40px}
 .card.tinted .updated,.card.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card h3{font-size:17px;font-weight:700;display:flex;align-items:center}
 .card h3 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px;flex:none}
-.card h3::after{content:"→";margin-left:auto;font-size:14px;opacity:.4}
-.card p{font-size:13px;color:var(--muted);line-height:1.65;margin-top:8px;
+.card h3::after{content:"→";margin-left:auto;font-size:15px;opacity:.4}
+.card p{font-size:15px;color:var(--muted);line-height:1.65;margin-top:8px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .badge{
-  display:inline-block;font-size:12px;font-weight:600;
+  display:inline-block;font-size:15px;font-weight:600;
   padding:3px 9px;border-radius:7px;
 }
 .badge.free{background:#eef1f5;color:var(--muted)}
@@ -83,13 +83,13 @@ section{margin-bottom:40px}
 .badge.exp{background:#eef1f5;color:var(--muted)}
 .badge.expired{background:#fdecea;color:#c0392b}
 .updated{
-  font-size:13px;color:var(--muted);
+  font-size:15px;color:var(--muted);
   border-top:1px solid var(--border);
   margin-top:14px;padding-top:10px;
 }
 .mgr{display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
 .mgr button{
-  font-family:inherit;font-size:12px;font-weight:600;
+  font-family:inherit;font-size:15px;font-weight:600;
   border:1.5px solid var(--border);border-radius:7px;background:#fff;color:var(--text);
   padding:5px 12px;cursor:pointer;transition:.15s;
 }
@@ -154,11 +154,11 @@ section{margin-bottom:40px}
 .card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
-.status-msg{font-size:13px;color:var(--muted);margin-top:12px}
+.status-msg{font-size:15px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .head-btns{display:flex;gap:8px;flex:none}
-.addbtn{font-family:inherit;font-size:13px;font-weight:600;
+.addbtn{font-family:inherit;font-size:15px;font-weight:600;
   border:1.5px solid var(--border);border-radius:7px;background:#eef1f5;color:var(--text);
   padding:9px 16px;cursor:pointer;transition:.15s;white-space:nowrap}
 .addbtn:hover{border-color:var(--brand);color:var(--brand)}
