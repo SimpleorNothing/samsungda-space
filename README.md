@@ -69,6 +69,25 @@ rooms/A-1/page.html     # 게시된 HTML 원본
 - 방 구성 변경: `functions/_lib.js` 상단 `ROOMS` 배열만 수정
 - 사내 한정 공개가 필요하면 Cloudflare Zero Trust Access를 `space.samsungda.net`에 적용
 
+## 사이트 접근 비밀번호 (기획 도구 모음 공통 현관 · SSO)
+
+`functions/_middleware.js`가 사이트 전체에 비밀번호 게이트를 건다. 포털
+(`samsungda.net`)·다른 도구(`agentguide.samsungda.net` 등)와 **같은** 공통
+비밀번호·세션 쿠키(`da_portal_session`, `Domain=.samsungda.net`)를 공유한다:
+
+- 포털에서 한 번 로그인하면 여기로 바로 들어와도 재입력이 필요 없다(SSO).
+- 여기서 로그인해도 포털·다른 도구에 그대로 통한다.
+- 세션은 **180일** 유지(`AUTH_MAX_AGE`). 비밀번호를 바꾸면 기존 세션은 자동 만료.
+- 자체 열람 비밀번호가 설정된 방은 공통 현관을 건너뛰고 방 비밀번호만으로 접근 가능.
+- 개별 방 인증 쿠키(`space_auth_{방}`, 12시간)는 이와 **별개**.
+
+활성화: 포털과 **동일한 값**으로 secret을 설정해야 세션이 호환된다(미설정 시 게이트
+비활성 = 사이트 공개, 잠금 사고 방지).
+
+```
+wrangler pages secret put SITE_PASSWORD   # samsungda-space 프로젝트
+```
+
 ## 개발·배포 안전장치 (CI)
 
 `main`은 곧 production(`space.samsungda.net`) 입니다. Cloudflare Pages의 "배포 성공(초록 체크)"은
