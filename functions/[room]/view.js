@@ -34,14 +34,17 @@ export async function onRequestGet(context) {
   const index = await readIndex(context.env);
   if (!roomExists(index, id)) return new Response('Not Found', { status: 404 });
 
-  const meta = index.rooms[id];
+  const meta = index.rooms[id] || null;
   const roomUrl = new URL('/' + encodeURIComponent(id), context.request.url).toString();
-  if (!meta) return Response.redirect(roomUrl, 302);
 
+  // 비공개 방 미인증 → 방 페이지(비밀번호 게이트)로. 게이트 화면에는 뷰어 iframe이
+  // 없으므로 재귀 위험이 없다. page.html 실존·meta 유무와 무관하게 인증을 먼저 판정한다.
   if (!(await isAuthorized(context.request, id, meta))) {
     return Response.redirect(roomUrl, 302);
   }
 
+  // page.html이 있으면 meta 유무와 상관없이 그대로 제공한다. (meta가 없는데 방으로
+  // 리다이렉트하면, 방 페이지가 page.html 실존으로 뷰어를 다시 렌더해 재귀가 되살아난다.)
   const obj = await context.env.SPACE.get('rooms/' + id + '/page.html');
   if (!obj) {
     // 임베드(뷰어 iframe)는 방으로 보내면 중첩 렌더링되므로 안내 문서를 응답.
