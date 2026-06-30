@@ -286,6 +286,8 @@ export function roomPage(room, meta, authorized, hasPage) {
   // 어긋나 있어도(예: 삭제 후 플래그가 남음) 실제 파일이 없으면 빈방으로 렌더해
   // 뷰어가 방 페이지를 재귀로 끌어안는 무한 중첩을 원천 차단한다.
   const used = !!hasPage;
+  // 게시되면 웹페이지 탭, 미게시면 메모·파일 탭을 기본 활성 탭으로.
+  const defaultTab = used ? 'web' : 'notes';
   const priv = !!(meta && meta.passwordHash);
   const locked = priv && !authorized;
   const editor = isEditorRoom(room);
