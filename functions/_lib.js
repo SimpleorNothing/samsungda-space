@@ -1127,7 +1127,7 @@ function workspaceScript(room, meta, editor, used, priv) {
   tabBtns.forEach(function(b){
     b.addEventListener('click', function(){ showTab(b.getAttribute('data-tab')); });
   });
-  showTab('${defaultTab}');
+  showTab('${used ? 'web' : 'notes'}');
 
   // ---- 방 설정 ----
   ${settingsSnippet(priv, (meta && meta.expiresAt) ? meta.expiresAt : '', (meta && meta.color) ? meta.color : '')}
