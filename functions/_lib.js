@@ -276,6 +276,8 @@ const COLORS = [
 
 export function roomPage(room, meta, authorized) {
   const used = !!(meta && meta.published);
+  // 빈방(웹페이지 미게시)은 메모·파일을 기본 탭으로, 게시중이면 웹페이지를 기본 탭으로
+  const defaultTab = used ? 'web' : 'notes';
   const priv = !!(meta && meta.passwordHash);
   const locked = priv && !authorized;
   const editor = isEditorRoom(room);
@@ -346,12 +348,12 @@ export function roomPage(room, meta, authorized) {
       </div>
 
       <div class="tabbar">
-        <button data-tab="notes">메모·파일</button>
-        <button data-tab="web">웹페이지</button>
+        <button data-tab="notes"${defaultTab === 'notes' ? ' class="active"' : ''}>메모·파일</button>
+        <button data-tab="web"${defaultTab === 'web' ? ' class="active"' : ''}>웹페이지</button>
         <button data-tab="bamboo">블라인드 보이스</button>
       </div>
 
-      <div class="tabpanel" id="tab-notes">
+      <div class="tabpanel${defaultTab === 'notes' ? ' active' : ''}" id="tab-notes">
         <div class="panel">
           <h2>메모·파일 저장</h2>
           <textarea id="nText" class="input" placeholder="내용을 입력하세요"></textarea>
@@ -363,7 +365,7 @@ export function roomPage(room, meta, authorized) {
         <div id="noteList"></div>
       </div>
 
-      <div class="tabpanel" id="tab-web">
+      <div class="tabpanel${defaultTab === 'web' ? ' active' : ''}" id="tab-web">
         ${webTabMarkup(room, used, editor)}
         <div class="status-msg" id="msgWeb"></div>
       </div>
@@ -1125,7 +1127,7 @@ function workspaceScript(room, meta, editor, used, priv) {
   tabBtns.forEach(function(b){
     b.addEventListener('click', function(){ showTab(b.getAttribute('data-tab')); });
   });
-  showTab('${used ? 'web' : 'notes'}');
+  showTab('${defaultTab}');
 
   // ---- 방 설정 ----
   ${settingsSnippet(priv, (meta && meta.expiresAt) ? meta.expiresAt : '', (meta && meta.color) ? meta.color : '')}
