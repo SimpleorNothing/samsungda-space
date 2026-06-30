@@ -121,6 +121,15 @@ export async function writeIndex(env, index) {
   });
 }
 
+// 게시 여부의 단일 진실 공급원(single source of truth) = page.html 객체의 실존 여부.
+// index.json의 meta.published 플래그와 page.html이 어긋날 수 있어(동시 쓰기로 인한
+// 인덱스 덮어쓰기, 삭제 도중 부분 실패 등) 플래그만 믿으면 "삭제한 웹페이지가 다시
+// 살아나는" 불일치 상태가 생긴다. 그래서 화면 렌더·게시/교체/삭제 판정은 모두 이 함수로
+// page.html 실존을 직접 확인한다. meta.published는 호환용 힌트로만 남겨둔다.
+export async function pageExists(env, room) {
+  return !!(await env.SPACE.head('rooms/' + room + '/page.html'));
+}
+
 // ---------- 인증 (열람 비밀번호) ----------
 // 비밀번호 검증 성공 시 space_auth_{room} 쿠키에 해시를 저장하고,
 // 이후 요청은 쿠키 해시 == 저장 해시로 판정. 교체/삭제도 동일 권한.
@@ -294,8 +303,11 @@ const COLORS = [
 // 잠김: 비밀번호 게이트 / 그 외: 3탭 워크스페이스 (메모·파일 / 웹페이지 / 블라인드 보이스)
 // 헤더 우측: 공개/비공개 배지 + 방 설정(공개 범위·사용기한·테마 색) 버튼
 
-export function roomPage(room, meta, authorized) {
-  const used = !!(meta && meta.published);
+export function roomPage(room, meta, authorized, hasPage) {
+  // 게시 여부는 page.html 실존(hasPage)을 진실로 삼는다. index.json의 meta.published가
+  // 어긋나 있어도(예: 삭제 후 플래그가 남음) 실제 파일이 없으면 빈방으로 렌더해
+  // 뷰어가 방 페이지를 재귀로 끌어안는 무한 중첩을 원천 차단한다.
+  const used = !!hasPage;
   const priv = !!(meta && meta.passwordHash);
   const locked = priv && !authorized;
   const editor = isEditorRoom(room);

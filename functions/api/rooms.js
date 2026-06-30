@@ -28,18 +28,22 @@ export async function onRequestGet(context) {
   const heads = await Promise.all(ids.map(function (id) {
     return context.env.SPACE.head('rooms/' + id + '/notes.json');
   }));
+  // 게시 여부 — page.html 실존을 진실로 삼는다(meta.published 플래그 드리프트 무시)
+  const pageHeads = await Promise.all(ids.map(function (id) {
+    return context.env.SPACE.head('rooms/' + id + '/page.html');
+  }));
 
   const rooms = ids.map(function (id, i) {
     const meta = index.rooms[id] || null;
-    const published = !!(meta && meta.published);
+    const published = !!pageHeads[i];
     const hasNotes = !!heads[i];
     const expiresAt = (meta && meta.expiresAt) || null;
     return {
       id: id,
       used: published || hasNotes,
       published: published,
-      title: published ? (meta.title || '') : '',
-      updated: published ? String(meta.updatedAt || '').slice(0, 10) : '',
+      title: published && meta ? (meta.title || '') : '',
+      updated: published && meta ? String(meta.updatedAt || '').slice(0, 10) : '',
       locked: !!(meta && meta.passwordHash),
       color: (meta && meta.color) || null,
       expiresAt: expiresAt,
