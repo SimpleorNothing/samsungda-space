@@ -18,18 +18,35 @@
 body{
   background:var(--bg);
   color:var(--text);
-  font-family:'Pretendard',system-ui,-apple-system,'Segoe UI',Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   padding:56px 24px;
 }
 .wrap{max-width:860px;margin:0 auto}
 h1{font-size:30px;font-weight:800;letter-spacing:-0.5px;line-height:1.2}
 .sub{font-size:15px;color:var(--muted);margin-top:6px}
 h2{font-size:20px;font-weight:700;letter-spacing:-0.3px}
-.desc{font-size:13px;color:var(--muted);margin-top:4px}
+.desc{font-size:15px;color:var(--muted);margin-top:4px}
 section{margin-bottom:40px}
 .section-head{margin-bottom:16px}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:600px){.grid{grid-template-columns:1fr}}
+
+/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 위/아래로 방을 나눈다. */
+.divider{
+  grid-column:1 / -1;
+  display:flex;align-items:center;gap:12px;
+  margin:6px 0;color:var(--muted);font-size:15px;font-weight:600;
+}
+.divider::before,.divider::after{content:"";flex:1;height:0;border-top:2px dashed var(--border)}
+.grid.reorder .divider{color:var(--brand)}
+.grid.reorder .divider::before,.grid.reorder .divider::after{border-top-color:var(--brand)}
+
+/* 정렬 모드 — 카드를 끌어 구분선 위/아래로 옮길 수 있다. */
+.grid.reorder .card{cursor:grab}
+.grid.reorder .card:active{cursor:grabbing}
+.card.dragging{opacity:.45}
+.grid.reorder .divider.drop-on{color:var(--brand)}
+.grid.reorder .divider.drop-on::before,.grid.reorder .divider.drop-on::after{border-top-style:solid}
 .card{
   display:block;
   min-width:0;
@@ -50,12 +67,12 @@ section{margin-bottom:40px}
 .card.tinted .updated,.card.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card h3{font-size:17px;font-weight:700;display:flex;align-items:center}
 .card h3 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px;flex:none}
-.card h3::after{content:"→";margin-left:auto;font-size:14px;opacity:.4}
-.card p{font-size:13px;color:var(--muted);line-height:1.65;margin-top:8px;
+.card h3::after{content:"→";margin-left:auto;font-size:15px;opacity:.4}
+.card p{font-size:15px;color:var(--muted);line-height:1.65;margin-top:8px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .badge{
-  display:inline-block;font-size:12px;font-weight:600;
+  display:inline-block;font-size:15px;font-weight:600;
   padding:3px 9px;border-radius:7px;
 }
 .badge.free{background:#eef1f5;color:var(--muted)}
@@ -65,13 +82,13 @@ section{margin-bottom:40px}
 .badge.exp{background:#eef1f5;color:var(--muted)}
 .badge.expired{background:#fdecea;color:#c0392b}
 .updated{
-  font-size:13px;color:var(--muted);
+  font-size:15px;color:var(--muted);
   border-top:1px solid var(--border);
   margin-top:14px;padding-top:10px;
 }
 .mgr{display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
 .mgr button{
-  font-family:inherit;font-size:12px;font-weight:600;
+  font-family:inherit;font-size:15px;font-weight:600;
   border:1.5px solid var(--border);border-radius:7px;background:#fff;color:var(--text);
   padding:5px 12px;cursor:pointer;transition:.15s;
 }
@@ -123,23 +140,11 @@ section{margin-bottom:40px}
 .card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
-.card{cursor:grab}
-.card.dragging{opacity:.4}
-.grid.dragging-active,.grid.dragging-active .card{cursor:grabbing}
-.grid{user-select:none}
-
-/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 카드를 끌어 위/아래로 옮길 수 있다. */
-.divider{
-  grid-column:1 / -1;
-  height:0;border-top:1px solid var(--border);
-  margin:6px 0;cursor:default;
-}
-.divider.drag-over{border-top-color:var(--brand) !important;border-top-width:2px !important}
-.status-msg{font-size:13px;color:var(--muted);margin-top:12px}
+.status-msg{font-size:15px;color:var(--muted);margin-top:12px}
 .status-msg.err{color:#c0392b}
 .head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .head-btns{display:flex;gap:8px;flex:none}
-.addbtn{font-family:inherit;font-size:13px;font-weight:600;
+.addbtn{font-family:inherit;font-size:15px;font-weight:600;
   border:1.5px solid var(--border);border-radius:7px;background:#eef1f5;color:var(--text);
   padding:9px 16px;cursor:pointer;transition:.15s;white-space:nowrap}
 .addbtn:hover{border-color:var(--brand);color:var(--brand)}

@@ -43,7 +43,7 @@ export async function onRequestGet(context) {
       used: published || hasNotes,
       published: published,
       title: published && meta ? (meta.title || '') : '',
-      updated: meta ? String(meta.updatedAt || '').slice(0, 10) : '',
+      updated: published && meta ? String(meta.updatedAt || '').slice(0, 10) : '',
       locked: !!(meta && meta.passwordHash),
       color: (meta && meta.color) || null,
       expiresAt: expiresAt,
