@@ -3,7 +3,7 @@
 // 비밀번호·사용기한 설정은 /api/room/:room/settings 로 분리됨 — 여기서는 다루지 않음.
 import {
   isValidRoomId, roomExists, readIndex, writeIndex,
-  isAuthorized, metaIsEmpty, json,
+  isAuthorized, metaIsEmpty, pageExists, json,
 } from '../../../_lib.js';
 
 const MAX_HTML_BYTES = 5 * 1024 * 1024; // 5MB
@@ -49,7 +49,9 @@ export async function onRequestPost(context) {
   if (!roomExists(index, room)) return json({ error: 'unknown room' }, 404);
 
   const meta = index.rooms[room] || null;
-  if (meta && meta.published) return json({ error: 'occupied' }, 409);
+  // 게시 가능 여부는 실제 page.html 실존으로 판정 — meta.published 플래그가 잘못
+  // 남아있어도(드리프트) 파일이 없으면 게시를 허용해 "다시 게시 불가" 막힘을 방지.
+  if (await pageExists(context.env, room)) return json({ error: 'occupied' }, 409);
   if (!(await isAuthorized(context.request, room, meta))) return json({ error: 'unauthorized' }, 401);
 
   await context.env.SPACE.put('rooms/' + room + '/page.html', body.html, {
@@ -72,8 +74,12 @@ export async function onRequestPut(context) {
   if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
 
   const index = await readIndex(context.env);
-  const meta = index.rooms[room];
-  if (!meta || !meta.published) return json({ error: 'not published' }, 404);
+  if (!roomExists(index, room)) return json({ error: 'unknown room' }, 404);
+
+  // 교체는 실제로 게시된(page.html 존재) 방에만 허용 — 플래그가 아닌 파일 실존 기준.
+  if (!(await pageExists(context.env, room))) return json({ error: 'not published' }, 404);
+
+  const meta = index.rooms[room] || { passwordHash: null, expiresAt: null };
   if (!(await isAuthorized(context.request, room, meta))) return json({ error: 'unauthorized' }, 401);
 
   const body = await parseBody(context.request);
@@ -84,8 +90,10 @@ export async function onRequestPut(context) {
   });
   await putSource(context.env, room, body);
 
+  meta.published = true;
   if (body.title) meta.title = String(body.title).slice(0, 60);
   meta.updatedAt = nowKST();
+  index.rooms[room] = meta;
   await writeIndex(context.env, index);
   return json({ ok: true });
 }
@@ -96,21 +104,29 @@ export async function onRequestDelete(context) {
   if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
 
   const index = await readIndex(context.env);
-  const meta = index.rooms[room];
-  if (!meta || !meta.published) return json({ error: 'not published' }, 404);
+  if (!roomExists(index, room)) return json({ error: 'unknown room' }, 404);
+
+  const meta = index.rooms[room] || null;
+  // 실제 page.html이 있거나, 플래그만 남아있는(드리프트) 경우 모두 삭제 대상.
+  // 둘 다 없으면 진짜 게시된 게 없음.
+  const hasPage = await pageExists(context.env, room);
+  if (!hasPage && !(meta && meta.published)) return json({ error: 'not published' }, 404);
   if (!(await isAuthorized(context.request, room, meta))) return json({ error: 'unauthorized' }, 401);
 
+  // page.html이 이미 없어도 무해(멱등). 남아있던 플래그까지 함께 정리해 불일치를 치유한다.
   await context.env.SPACE.delete('rooms/' + room + '/page.html');
   await context.env.SPACE.delete('rooms/' + room + '/source.md');
 
-  meta.published = false;
-  delete meta.title;
-  delete meta.updatedAt;
-  if (metaIsEmpty(meta)) {
-    delete index.rooms[room];
-  } else {
-    index.rooms[room] = meta;
+  if (meta) {
+    meta.published = false;
+    delete meta.title;
+    delete meta.updatedAt;
+    if (metaIsEmpty(meta)) {
+      delete index.rooms[room];
+    } else {
+      index.rooms[room] = meta;
+    }
+    await writeIndex(context.env, index);
   }
-  await writeIndex(context.env, index);
   return json({ ok: true });
 }
