@@ -81,7 +81,7 @@ export async function onRequestPost(context) {
       httpMetadata: { contentType: f.type || 'application/octet-stream' },
       customMetadata: { name: f.name },
     });
-    files.push({ id: fid, name: f.name, size: f.size });
+    files.push({ id: fid, name: f.name, size: f.size, type: f.type || '' });
   }
 
   const item = { id: newId(), title: title, text: text, files: files, createdAt: nowKST() };
