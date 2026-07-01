@@ -223,6 +223,19 @@ textarea.input:focus{border-color:var(--brand)}
 .note .files a{font-size:15px;color:var(--brand);text-decoration:none;background:#fff;
   border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;transition:.15s}
 .note .files a:hover{border-color:var(--brand)}
+.note .imgs{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
+.note .imgs a{display:block;line-height:0}
+.note .imgs img{max-width:220px;max-height:220px;border:1.5px solid var(--border);border-radius:10px;
+  object-fit:cover;background:#fff;transition:.15s}
+.note .imgs a:hover img{border-color:var(--brand)}
+.previews{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.previews:empty{display:none}
+.thumb{position:relative;line-height:0}
+.thumb img{width:96px;height:96px;object-fit:cover;border:1.5px solid var(--border);border-radius:10px;background:#fff}
+.thumb .rm{position:absolute;top:-7px;right:-7px;width:20px;height:20px;padding:0;border-radius:50%;
+  border:1.5px solid var(--border);background:#fff;color:var(--muted);font-size:13px;font-weight:700;
+  line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.thumb .rm:hover{background:#ffe1e1;color:#c0392b;border-color:#ffe1e1}
 .meta-line{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted);margin-top:12px}
 button.mini{font-size:15px;padding:4px 10px;margin-left:auto}
 .empty-line{font-size:15px;color:var(--muted);margin-top:16px}
@@ -369,6 +382,7 @@ export function roomPage(room, meta, authorized, hasPage) {
           <textarea id="nText" class="input" placeholder="내용을 입력하세요"></textarea>
           <div class="dropzone" id="nDrop">이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기</div>
           <input id="nFiles" type="file" multiple hidden>
+          <div class="previews" id="nPreview"></div>
           <div class="btn-row btn-row-end"><button id="nSave" class="primary">저장</button></div>
           <div class="status-msg" id="msgNotes"></div>
         </div>
@@ -553,9 +567,17 @@ function notesSnippet() {
   var nFiles = document.getElementById('nFiles');
   var nDrop = document.getElementById('nDrop');
   var nSave = document.getElementById('nSave');
+  var nPreview = document.getElementById('nPreview');
   var DROP_HINT = '이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기';
 
   function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b/1024)) + 'KB'; }
+
+  // 파일이 이미지인지 판정 — MIME 우선, 없으면 확장자로 (구버전 메모 대비)
+  var IMG_EXT = /\\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif)$/i;
+  function isImage(f){
+    if(f.type && f.type.indexOf('image/') === 0) return true;
+    return !!(f.name && IMG_EXT.test(f.name));
+  }
 
   // 메모 텍스트를 클립보드에 복사 (실패 시 execCommand 대체)
   function copyText(text, btn){
@@ -587,13 +609,48 @@ function notesSnippet() {
     clickDownload('/api/room/' + ROOM + '/notezip/' + note.id);
   }
 
-  // 선택된 파일에 맞춰 드롭존 안내 문구 갱신
+  // 선택된 파일에 맞춰 드롭존 안내 문구 갱신 + 이미지 미리보기 렌더
   function updateDropLabel(){
     var n = nFiles.files ? nFiles.files.length : 0;
-    if(!n){ nDrop.textContent = DROP_HINT; return; }
-    var names = [];
-    for(var i = 0; i < nFiles.files.length; i++) names.push(nFiles.files[i].name);
-    nDrop.textContent = '첨부 ' + n + '개: ' + names.join(', ') + ' (클릭해 변경)';
+    if(!n){ nDrop.textContent = DROP_HINT; }
+    else {
+      var names = [];
+      for(var i = 0; i < nFiles.files.length; i++) names.push(nFiles.files[i].name);
+      nDrop.textContent = '첨부 ' + n + '개: ' + names.join(', ') + ' (클릭해 변경)';
+    }
+    renderPreviews();
+  }
+
+  // 첨부에서 index 파일을 제거
+  function removeAttachment(index){
+    var dt = new DataTransfer();
+    for(var i = 0; i < nFiles.files.length; i++){ if(i !== index) dt.items.add(nFiles.files[i]); }
+    nFiles.files = dt.files;
+    updateDropLabel();
+  }
+
+  // 붙이거나 첨부한 이미지를 저장 전에도 썸네일로 바로 보여준다
+  var previewUrls = [];
+  function renderPreviews(){
+    for(var k = 0; k < previewUrls.length; k++) URL.revokeObjectURL(previewUrls[k]);
+    previewUrls = [];
+    nPreview.innerHTML = '';
+    var files = nFiles.files || [];
+    for(var i = 0; i < files.length; i++){
+      if(!isImage(files[i])) continue;
+      (function(idx, file){
+        var url = URL.createObjectURL(file);
+        previewUrls.push(url);
+        var wrap = document.createElement('div'); wrap.className = 'thumb';
+        var img = document.createElement('img'); img.src = url; img.alt = file.name; img.title = file.name;
+        var rm = document.createElement('button');
+        rm.type = 'button'; rm.className = 'rm'; rm.textContent = '×';
+        rm.setAttribute('aria-label', file.name + ' 첨부 제거');
+        rm.addEventListener('click', function(){ removeAttachment(idx); });
+        wrap.appendChild(img); wrap.appendChild(rm);
+        nPreview.appendChild(wrap);
+      })(i, files[i]);
+    }
   }
 
   // 드롭존·메모장 어디에나 파일을 끌어다 놓으면 첨부에 추가
@@ -678,14 +735,25 @@ function notesSnippet() {
       if(n.title){ var h = document.createElement('h3'); h.textContent = n.title; card.appendChild(h); }
       if(n.text){ var p = document.createElement('p'); p.textContent = n.text; card.appendChild(p); }
       if(n.files && n.files.length){
+        // 이미지 첨부는 썸네일로, 그 외 파일은 기존 링크 칩으로 표시
+        var imgs = document.createElement('div'); imgs.className = 'imgs';
         var fw = document.createElement('div'); fw.className = 'files';
         n.files.forEach(function(f){
-          var a = document.createElement('a');
-          a.href = '/api/room/' + ROOM + '/file/' + f.id;
-          a.textContent = f.name + ' (' + fmtSize(f.size) + ')';
-          fw.appendChild(a);
+          var href = '/api/room/' + ROOM + '/file/' + f.id;
+          if(isImage(f)){
+            var a = document.createElement('a');
+            a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.title = f.name;
+            var img = document.createElement('img'); img.src = href; img.alt = f.name; img.loading = 'lazy';
+            a.appendChild(img); imgs.appendChild(a);
+          } else {
+            var link = document.createElement('a');
+            link.href = href;
+            link.textContent = f.name + ' (' + fmtSize(f.size) + ')';
+            fw.appendChild(link);
+          }
         });
-        card.appendChild(fw);
+        if(imgs.childNodes.length) card.appendChild(imgs);
+        if(fw.childNodes.length) card.appendChild(fw);
       }
       var m = document.createElement('div'); m.className = 'meta-line';
       var s = document.createElement('span'); s.textContent = n.createdAt; m.appendChild(s);
