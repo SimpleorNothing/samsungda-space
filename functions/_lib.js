@@ -367,7 +367,7 @@ export function roomPage(room, meta, authorized, hasPage) {
         <div class="panel">
           <h2>메모·파일 저장</h2>
           <textarea id="nText" class="input" placeholder="내용을 입력하세요"></textarea>
-          <div class="dropzone" id="nDrop">이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요</div>
+          <div class="dropzone" id="nDrop">이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기</div>
           <input id="nFiles" type="file" multiple hidden>
           <div class="btn-row btn-row-end"><button id="nSave" class="primary">저장</button></div>
           <div class="status-msg" id="msgNotes"></div>
@@ -553,7 +553,7 @@ function notesSnippet() {
   var nFiles = document.getElementById('nFiles');
   var nDrop = document.getElementById('nDrop');
   var nSave = document.getElementById('nSave');
-  var DROP_HINT = '이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요';
+  var DROP_HINT = '이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기';
 
   function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b/1024)) + 'KB'; }
 
@@ -621,6 +621,50 @@ function notesSnippet() {
     el.addEventListener('dragover', onDragOver(el));
     el.addEventListener('dragleave', onDragLeave(el));
     el.addEventListener('drop', onDrop(el));
+  });
+
+  // 클립보드의 이미지(캡처·스크린샷 등)를 붙여넣기(Ctrl/⌘+V)로 바로 첨부
+  function pastedImageFiles(cd){
+    if(!cd) return [];
+    var out = [], i;
+    var items = cd.items || [];
+    for(i = 0; i < items.length; i++){
+      if(items[i].kind === 'file' && items[i].type && items[i].type.indexOf('image/') === 0){
+        var f = items[i].getAsFile();
+        if(f) out.push(f);
+      }
+    }
+    // items를 제공하지 않는 브라우저 대비 — files에서 이미지만 추림
+    if(!out.length && cd.files){
+      for(i = 0; i < cd.files.length; i++){
+        if(cd.files[i].type && cd.files[i].type.indexOf('image/') === 0) out.push(cd.files[i]);
+      }
+    }
+    return out;
+  }
+
+  var pasteSeq = 0;
+  // 캡처 이미지는 이름이 없거나 'image.png'로 겹치므로 타임스탬프 이름을 부여
+  function namedImage(f){
+    if(f.name && f.name !== 'image.png' && f.name !== 'blob') return f;
+    var ext = ((f.type.split('/')[1]) || 'png').replace('jpeg', 'jpg');
+    var d = new Date();
+    function pad(n){ return (n < 10 ? '0' : '') + n; }
+    var stamp = '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '_' +
+                pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+    var name = 'screenshot_' + stamp + (++pasteSeq > 1 ? '_' + pasteSeq : '') + '.' + ext;
+    try { return new File([f], name, { type: f.type }); }
+    catch(e){ return f; }
+  }
+
+  // 메모·파일 탭이 활성일 때만 동작 — 다른 탭의 텍스트 붙여넣기를 가로채지 않는다
+  document.addEventListener('paste', function(e){
+    var panel = document.getElementById('tab-notes');
+    if(!panel || !panel.classList.contains('active')) return;
+    var imgs = pastedImageFiles(e.clipboardData || window.clipboardData);
+    if(!imgs.length) return;
+    e.preventDefault();
+    addDroppedFiles(imgs.map(namedImage));
   });
 
   function renderNotes(items){
