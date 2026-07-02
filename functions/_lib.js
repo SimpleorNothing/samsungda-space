@@ -341,7 +341,7 @@ export function roomPage(room, meta, authorized, hasPage) {
         <h2>방 설정</h2>
         <div class="field">
           <label for="setTitle">방 제목 <span class="hint">(방 목록에 표시 — 비우면 제목 없음)</span></label>
-          <input id="setTitle" type="text" maxlength="100" value="${titleVal}" placeholder="예: 주간 회의 안내">
+          <input id="setTitle" type="text" maxlength="100" value="${titleVal}">
         </div>
         <label class="opt"><input type="radio" name="vis" value="public"${priv ? '' : ' checked'}> 공개 — 누구나 열람</label>
         <label class="opt"><input type="radio" name="vis" value="private"${priv ? ' checked' : ''}> 비공개 — 비밀번호를 아는 사람만 열람 (모든 탭에 적용)</label>
