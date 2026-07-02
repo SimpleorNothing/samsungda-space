@@ -31,13 +31,23 @@ section{margin-bottom:40px}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:600px){.grid{grid-template-columns:1fr}}
 
-/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 위/아래로 방을 나눈다. */
+/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 위/아래로 방을 나눈다.
+   카드처럼 끌어서 위치를 옮길 수 있고, 관리 모드에서는 추가·삭제할 수 있다. */
 .divider{
   grid-column:1 / -1;
   display:flex;align-items:center;gap:12px;
   margin:6px 0;color:var(--muted);font-size:15px;font-weight:600;
+  cursor:grab;min-height:14px;
 }
+.divider:active{cursor:grabbing}
+.divider.dragging{opacity:.45}
 .divider::before,.divider::after{content:"";flex:1;height:0;border-top:2px dashed var(--border)}
+.divider .divrm{
+  font-family:inherit;font-size:13px;font-weight:600;
+  border:1.5px solid var(--border);border-radius:7px;background:#fff;color:var(--muted);
+  padding:3px 10px;cursor:pointer;transition:.15s;flex:none;
+}
+.divider .divrm:hover{background:#ffe1e1;color:#c0392b;border-color:#ffe1e1}
 .grid.reorder .divider{color:var(--brand)}
 .grid.reorder .divider::before,.grid.reorder .divider::after{border-top-color:var(--brand)}
 
@@ -223,6 +233,7 @@ section{margin-bottom:40px}
       </div>
       <div class="head-btns">
         <button class="addbtn" id="addRoomBtn" type="button">+ 빈방 추가</button>
+        <button class="addbtn" id="addDivBtn" type="button" style="display:none">+ 구분선 추가</button>
         <button class="addbtn" id="mgrBtn" type="button">방 관리</button>
         <button class="addbtn" id="helpBtn" type="button">사용방법</button>
       </div>
@@ -251,7 +262,8 @@ section{margin-bottom:40px}
 
     <div class="help-item">
       <h4><span class="tag">메뉴</span>방 관리</h4>
-      <p>방 정리 모드를 켭니다. 켜면 각 방 카드에 <b>이름 변경</b> · <b>비우기</b> · <b>방 삭제</b> 버튼이 나타납니다.
+      <p>방 정리 모드를 켭니다. 켜면 각 방 카드에 <b>이름 변경</b> · <b>비우기</b> · <b>방 삭제</b> 버튼이 나타나고,
+        상단에 <b>+ 구분선 추가</b> 버튼이 생깁니다. 구분선의 <b>구분선 삭제</b> 버튼으로 없앨 수도 있어요.
         다시 누르면 <b>관리 완료</b>로 바뀌며 정리 모드가 꺼집니다.</p>
       <p><b>· 이름 변경</b> — 방 이름을 새로 짓습니다. 안의 메모·파일과 웹페이지, 설정은 그대로 유지되고 <b>주소도 새 이름으로 바뀝니다.</b><br>
         <b>· 비우기</b> — 방 안의 메모·파일, 게시된 웹페이지, 설정을 모두 지우고 <b>빈방으로 되돌립니다.</b> 방 자체는 그대로 남습니다.<br>
@@ -266,8 +278,9 @@ section{margin-bottom:40px}
 
     <div class="help-item">
       <h4><span class="tag">정렬</span>카드 드래그 · 구분선</h4>
-      <p>카드를 끌어다 놓으면 방 순서를 바꿀 수 있습니다. 목록에는 <b>구분선</b>이 있어, 카드를 구분선
-        <b>위/아래로 옮겨</b> 자주 쓰는 방과 그 외 방을 나눠 둘 수 있어요. 순서와 구분선 위치는 이 브라우저에 저장됩니다.</p>
+      <p>카드를 끌어다 놓으면 방 순서를 바꿀 수 있습니다. 목록에는 <b>구분선</b>을 여러 개 둘 수 있어, 카드를 구분선
+        <b>위/아래로 옮겨</b> 자주 쓰는 방과 그 외 방을 나눠 둘 수 있어요. 구분선 자체도 끌어서 옮길 수 있습니다.
+        순서와 구분선 위치는 <b>서버에 저장</b>되어 어느 기기·브라우저에서 열어도 동일하게 보입니다.</p>
     </div>
 
     <div class="help-item">
@@ -290,12 +303,14 @@ section{margin-bottom:40px}
   var msg = document.getElementById('msg');
   var mgrBtn = document.getElementById('mgrBtn');
   var addBtn = document.getElementById('addRoomBtn');
+  var addDivBtn = document.getElementById('addDivBtn');
   var helpBtn = document.getElementById('helpBtn');
   var helpModal = document.getElementById('helpModal');
   var helpClose = document.getElementById('helpClose');
   var roomsCache = [];
   var manage = false;
-  var dividerPos = 0;
+  var dividerPositions = [];   // 구분선 위치들 — "이 인덱스의 카드 앞" (서버 저장, 여러 개 가능)
+  // 예전에 브라우저(localStorage)에 저장하던 배치 — 서버로 1회 이관할 때만 사용
   var ORDER_KEY = 'samsungda_room_order';
   var DIVIDER_KEY = 'samsungda_room_divider';
 
@@ -317,19 +332,40 @@ section{margin-bottom:40px}
     return '비어 있는 방입니다. 들어가서 바로 사용해보세요.';
   }
 
-  function makeDivider(){
+  function makeDivider(k){
     var d = document.createElement('div');
     d.className = 'divider';
     d.dataset.divider = '1';
-    d.setAttribute('aria-hidden', 'true');
+    if(manage){
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'divrm';
+      rm.textContent = '구분선 삭제';
+      rm.addEventListener('click', function(){
+        dividerPositions.splice(k, 1);
+        render();
+        saveLayout();
+      });
+      d.appendChild(rm);
+    } else {
+      d.setAttribute('aria-hidden', 'true');
+    }
     return d;
+  }
+
+  // i번째 카드 앞에 놓일 구분선들을 그린다 (i === 카드 수면 맨 끝)
+  function appendDividersAt(i){
+    var n = roomsCache.length;
+    dividerPositions.forEach(function(p, k){
+      var pos = Math.max(0, Math.min(p, n));
+      if(pos === i) grid.appendChild(makeDivider(k));
+    });
   }
 
   function render(){
     grid.innerHTML = '';
-    var pos = Math.max(0, Math.min(dividerPos, roomsCache.length));
     roomsCache.forEach(function (r, i) {
-      if(i === pos) grid.appendChild(makeDivider());
+      appendDividersAt(i);
       var card = document.createElement('a');
       card.className = 'card ' + (r.used ? 'on' : 'off');
       card.href = '/' + encodeURIComponent(r.id);
@@ -388,53 +424,69 @@ section{margin-bottom:40px}
 
       grid.appendChild(card);
     });
-    if(pos >= roomsCache.length) grid.appendChild(makeDivider());
+    appendDividersAt(roomsCache.length);
   }
 
   // 드래그 후 DOM 순서를 읽어 방 순서·구분선 위치를 동기화
   function syncFromDom(){
-    var order = [], pos = null;
+    var order = [], divs = [];
     Array.prototype.forEach.call(grid.children, function(el){
-      if(el.dataset.divider){ pos = order.length; }
+      if(el.dataset.divider){ divs.push(order.length); }
       else if(el.dataset.id){ order.push(el.dataset.id); }
     });
-    if(pos === null) pos = order.length;
     var map = {};
     roomsCache.forEach(function(r){ map[r.id] = r; });
     roomsCache = order.map(function(id){ return map[id]; }).filter(Boolean);
-    dividerPos = pos;
+    dividerPositions = divs;
   }
 
-  function saveDivider(){
-    try{ localStorage.setItem(DIVIDER_KEY, JSON.stringify(dividerPos)); }catch(e){}
+  // 배치(방 순서·구분선 위치)를 서버에 저장 — 어느 기기에서 열어도 동일하게 보인다
+  function saveLayout(){
+    fetch('/api/rooms', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        order: roomsCache.map(function(r){ return r.id; }),
+        dividers: dividerPositions
+      })
+    }).then(function(res){
+      if(!res.ok){
+        msg.className = 'status-msg err';
+        msg.textContent = '배치 저장 실패 (HTTP ' + res.status + ') — 새로고침 시 순서가 되돌아갈 수 있어요.';
+      }
+    }).catch(function(e){
+      msg.className = 'status-msg err';
+      msg.textContent = '배치 저장 실패: ' + e.message;
+    });
   }
 
-  function applyDivider(){
-    try{
-      var saved = JSON.parse(localStorage.getItem(DIVIDER_KEY));
-      dividerPos = (typeof saved === 'number' && saved >= 0) ? saved : roomsCache.length;
-    }catch(e){ dividerPos = roomsCache.length; }
-    if(dividerPos > roomsCache.length) dividerPos = roomsCache.length;
-  }
-
-  function saveOrder(){
-    try{
-      var order = roomsCache.map(function(r){ return r.id; });
-      localStorage.setItem(ORDER_KEY, JSON.stringify(order));
-    }catch(e){}
-  }
-
-  function applyOrder(){
+  // 예전 브라우저 저장(localStorage) 배치를 서버로 1회 이관
+  function migrateLocalLayout(){
+    var migrated = false;
     try{
       var saved = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null');
-      if(!Array.isArray(saved)) return;
-      var map = {};
-      roomsCache.forEach(function(r){ map[r.id] = r; });
-      var ordered = [];
-      saved.forEach(function(id){ if(map[id]){ ordered.push(map[id]); delete map[id]; } });
-      Object.values(map).forEach(function(r){ ordered.push(r); });
-      roomsCache = ordered;
+      if(Array.isArray(saved)){
+        var map = {};
+        roomsCache.forEach(function(r){ map[r.id] = r; });
+        var ordered = [];
+        saved.forEach(function(id){ if(map[id]){ ordered.push(map[id]); delete map[id]; } });
+        Object.values(map).forEach(function(r){ ordered.push(r); });
+        roomsCache = ordered;
+        migrated = true;
+      }
+      var d = JSON.parse(localStorage.getItem(DIVIDER_KEY));
+      if(typeof d === 'number' && d >= 0){
+        dividerPositions = [Math.min(d, roomsCache.length)];
+        migrated = true;
+      }
     }catch(e){}
+    if(migrated){
+      saveLayout();
+      try{
+        localStorage.removeItem(ORDER_KEY);
+        localStorage.removeItem(DIVIDER_KEY);
+      }catch(e){}
+    }
   }
 
   // ----- 포인터 기반 드래그 정렬 -----
@@ -446,13 +498,14 @@ section{margin-bottom:40px}
   var suppressClick = false;  // 드래그 직후 따라오는 클릭(방 이동) 1회 무시
 
   function clearDividerMark(){
-    var d = grid.querySelector('.divider.drag-over');
-    if(d) d.classList.remove('drag-over');
+    Array.prototype.forEach.call(grid.querySelectorAll('.divider.drag-over'), function(d){
+      d.classList.remove('drag-over');
+    });
   }
 
   // 커서 위치 기준으로 "이 요소 앞에 끼워넣어야 한다"는 대상(카드 또는 구분선)을 찾는다.
   function afterTarget(x, y){
-    var els = Array.prototype.slice.call(grid.querySelectorAll('.card:not(.dragging), .divider'));
+    var els = Array.prototype.slice.call(grid.querySelectorAll('.card:not(.dragging), .divider:not(.dragging)'));
     var best = null, bestDist = Infinity;
     els.forEach(function(el){
       var b = el.getBoundingClientRect();
@@ -468,9 +521,9 @@ section{margin-bottom:40px}
   grid.addEventListener('pointerdown', function(e){
     suppressClick = false;
     if(e.button !== 0 || e.pointerType === 'touch') return; // 마우스·펜만, 터치는 스크롤 보존
-    var card = e.target.closest ? e.target.closest('.card') : null;
+    var card = e.target.closest ? e.target.closest('.card, .divider') : null; // 구분선도 끌 수 있다
     if(!card || !grid.contains(card)) return;
-    if(e.target.closest('.mgr')) return;                    // 관리 버튼은 드래그 제외
+    if(e.target.closest('.mgr') || e.target.closest('.divrm')) return; // 관리·구분선 삭제 버튼은 드래그 제외
     press = { el: card, pid: e.pointerId, x0: e.clientX, y0: e.clientY, dragging: false };
   });
 
@@ -493,8 +546,9 @@ section{margin-bottom:40px}
       else grid.appendChild(dragEl);
     }
     clearDividerMark();
-    var div = grid.querySelector('.divider');
-    if(div && (dragEl.nextElementSibling === div || dragEl.previousElementSibling === div)) div.classList.add('drag-over');
+    [dragEl.previousElementSibling, dragEl.nextElementSibling].forEach(function(n){
+      if(n && n.dataset && n.dataset.divider) n.classList.add('drag-over');
+    });
   });
 
   function endPress(commit){
@@ -511,8 +565,7 @@ section{margin-bottom:40px}
       suppressClick = true;       // 방금 끝난 드래그의 클릭은 방 이동으로 처리하지 않음
       if(commit){
         syncFromDom();            // DOM 순서 기준으로 방 순서·구분선 위치 재계산
-        saveOrder();
-        saveDivider();
+        saveLayout();             // 서버에 저장 — 어느 기기에서 열어도 동일
       }
     }
   }
@@ -556,14 +609,7 @@ section{margin-bottom:40px}
       body: JSON.stringify({ id: r.id, newId: name })
     }).then(function(res){
       if(res.ok){
-        // 저장된 카드 순서에서도 옛 이름을 새 이름으로 치환해 자리 유지
-        try{
-          var order = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null');
-          if(Array.isArray(order)){
-            var i = order.indexOf(r.id);
-            if(i !== -1){ order[i] = name; localStorage.setItem(ORDER_KEY, JSON.stringify(order)); }
-          }
-        }catch(e){}
+        // 서버가 저장된 배치에서도 옛 이름을 새 이름으로 치환하므로 다시 불러오기만 하면 됨
         loadRooms();
         return;
       }
@@ -618,8 +664,13 @@ section{margin-bottom:40px}
       })
       .then(function(data){
         roomsCache = data.rooms || [];
-        applyOrder();
-        applyDivider();
+        dividerPositions = Array.isArray(data.dividers) ? data.dividers : [];
+        if(!data.layoutSaved){
+          // 서버에 저장된 배치가 아직 없으면: 예전 기본값(맨 끝 구분선 1개)을 보여주고,
+          // 이 브라우저에 남은 예전 localStorage 배치가 있으면 서버로 이관한다.
+          dividerPositions = [roomsCache.length];
+          migrateLocalLayout();
+        }
         render();
         msg.className = 'status-msg';
         msg.textContent = '';
@@ -648,7 +699,14 @@ section{margin-bottom:40px}
     manage = !manage;
     mgrBtn.textContent = manage ? '관리 완료' : '방 관리';
     mgrBtn.className = manage ? 'addbtn on' : 'addbtn';
+    addDivBtn.style.display = manage ? '' : 'none';
     render();
+  });
+
+  addDivBtn.addEventListener('click', function(){
+    dividerPositions.push(roomsCache.length); // 맨 끝에 추가 — 끌어서 원하는 자리로 옮길 수 있다
+    render();
+    saveLayout();
   });
 
   addBtn.addEventListener('click', function(){
