@@ -118,6 +118,14 @@ ${FONT_LINK}
     </form>
   </section>
 </div>
+<script>
+// URL 해시(#note-… 등)는 서버에 전달되지 않으므로, 현관 통과 후 원래 위치로
+// 정확히 복귀하도록 브라우저에서 next 값에 해시를 덧붙인다.
+(function(){
+  var f = document.querySelector('input[name="next"]');
+  if (f && location.hash) f.value += location.hash;
+})();
+</script>
 </body>
 </html>`;
 }
