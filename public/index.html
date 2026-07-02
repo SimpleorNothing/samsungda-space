@@ -257,7 +257,8 @@ section{margin-bottom:40px}
       <h4><span class="tag">메뉴</span>+ 빈방 추가</h4>
       <p>새로운 방을 만듭니다. 입력한 이름이 그대로 주소가 됩니다.
         예) 이름을 <b>rooftop</b> 으로 지으면 <b>space.samsungda.net/rooftop</b> 으로 바로 접속할 수 있습니다.
-        이름에는 <b>영문·숫자·하이픈(-)·언더스코어(_)</b> 만 쓸 수 있어요 (최대 40자, 공백·한글·특수문자 불가).</p>
+        이름에는 <b>영문·숫자·하이픈(-)·언더스코어(_)</b> 만 쓸 수 있어요 (최대 40자, 공백·한글·특수문자 불가).
+        새 방은 <b>첫 구분선 위(섹션 1의 끝)</b>에 추가됩니다.</p>
     </div>
 
     <div class="help-item">
@@ -483,7 +484,7 @@ section{margin-bottom:40px}
   }
 
   // 이 브라우저 전용 배치가 있으면 서버 배치 위에 덧입힌다
-  // (저장 이후 생긴 새 방은 끝에, 삭제된 방 이름은 걸러서)
+  // (저장 이후 생긴 새 방은 첫 구분선 앞(섹션 1 끝)에, 삭제된 방 이름은 걸러서)
   function applyLocalLayout(){
     try{
       var saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
@@ -492,13 +493,20 @@ section{margin-bottom:40px}
       roomsCache.forEach(function(r){ map[r.id] = r; });
       var ordered = [];
       saved.order.forEach(function(id){ if(map[id]){ ordered.push(map[id]); delete map[id]; } });
-      Object.values(map).forEach(function(r){ ordered.push(r); });
-      roomsCache = ordered;
-      if(Array.isArray(saved.dividers)){
-        dividerPositions = saved.dividers
-          .filter(function(p){ return typeof p === 'number' && p >= 0; })
-          .map(function(p){ return Math.min(p, roomsCache.length); });
+      var divs = Array.isArray(saved.dividers)
+        ? saved.dividers
+            .filter(function(p){ return typeof p === 'number' && p >= 0; })
+            .map(function(p){ return Math.min(p, ordered.length); })
+            .sort(function(a, b){ return a - b; })
+        : dividerPositions.slice();
+      var extras = Object.values(map);
+      if(extras.length){
+        var at = divs.length ? divs[0] : ordered.length;
+        Array.prototype.splice.apply(ordered, [at, 0].concat(extras));
+        divs = divs.map(function(p){ return p >= at ? p + extras.length : p; });
       }
+      roomsCache = ordered;
+      dividerPositions = divs;
     }catch(e){}
   }
 
