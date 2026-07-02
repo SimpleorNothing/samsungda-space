@@ -33,7 +33,7 @@ export async function onRequestGet(context) {
   const today = todayKST();
 
   // 저장된 배치(index.layout = 방 이름·구분선 표식의 나열)가 있으면 그 순서를 따른다.
-  // 배치에 없는 방(그 뒤 새로 만든 방)은 목록 끝에 붙고, 삭제된 방 이름은 걸러진다.
+  // 배치에 없는 방(그 뒤 새로 만든 방)은 첫 구분선 앞(섹션 1 끝)에 끼고, 삭제된 방 이름은 걸러진다.
   const layout = Array.isArray(index.layout) ? index.layout : null;
   let ids = all;
   const dividers = [];
@@ -44,7 +44,14 @@ export async function onRequestGet(context) {
       if (x === DIVIDER_MARK) { dividers.push(ordered.length); return; }
       if (all.indexOf(x) !== -1 && !seen[x]) { seen[x] = true; ordered.push(x); }
     });
-    all.forEach(function (id) { if (!seen[id]) ordered.push(id); });
+    const extras = all.filter(function (id) { return !seen[id]; });
+    if (extras.length) {
+      const at = dividers.length ? dividers[0] : ordered.length;
+      ordered.splice.apply(ordered, [at, 0].concat(extras));
+      for (let i = 0; i < dividers.length; i++) {
+        if (dividers[i] >= at) dividers[i] += extras.length;
+      }
+    }
     ids = ordered;
   }
 
@@ -133,6 +140,12 @@ export async function onRequestPost(context) {
   }
   // 기본 사용기한 1개월 — published:false를 명시해 레거시 meta 정규화(published 미정의 = true)를 피함
   index.rooms[id] = { published: false, expiresAt: oneMonthLater() };
+  // 저장된 배치가 있으면 새 방을 첫 구분선 앞(섹션 1 끝)에 등록
+  if (Array.isArray(index.layout) && index.layout.indexOf(id) === -1) {
+    const at = index.layout.indexOf(DIVIDER_MARK);
+    if (at === -1) index.layout.push(id);
+    else index.layout.splice(at, 0, id);
+  }
   await writeIndex(context.env, index);
   return json({ ok: true, id: id }, 201);
 }
