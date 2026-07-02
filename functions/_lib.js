@@ -79,9 +79,9 @@ export async function readIndex(env) {
   return index;
 }
 
-// 게시도, 비밀번호도, 사용기한도 없는 meta는 인덱스에서 제거해도 됨
+// 게시도, 비밀번호도, 사용기한도, 제목도 없는 meta는 인덱스에서 제거해도 됨
 export function metaIsEmpty(meta) {
-  return !meta || (!meta.published && !meta.passwordHash && !meta.expiresAt && !meta.color);
+  return !meta || (!meta.published && !meta.passwordHash && !meta.expiresAt && !meta.color && !meta.title);
 }
 
 // KST 오늘 날짜 (YYYY-MM-DD)
@@ -305,6 +305,8 @@ export function roomPage(room, meta, authorized, hasPage) {
   const locked = priv && !authorized;
   const editor = isEditorRoom(room);
   const title = used ? escapeHtml(meta.title || '(제목 없음)') : '';
+  // 설정 패널의 제목 입력칸에는 대체 문구 없이 저장된 원래 제목만 넣는다
+  const titleVal = escapeHtml((meta && meta.title) || '');
   const updated = used ? escapeHtml(String(meta.updatedAt || '').slice(0, 10)) : '';
   const exp = (meta && meta.expiresAt) ? escapeHtml(meta.expiresAt) : '';
   const color = (meta && meta.color && /^#[0-9a-f]{6}$/i.test(meta.color)) ? meta.color : '';
@@ -337,6 +339,10 @@ export function roomPage(room, meta, authorized, hasPage) {
     bodyHtml = `
       <div class="panel" id="setPanel" style="display:none">
         <h2>방 설정</h2>
+        <div class="field">
+          <label for="setTitle">방 제목 <span class="hint">(방 목록에 표시 — 비우면 제목 없음)</span></label>
+          <input id="setTitle" type="text" maxlength="100" value="${titleVal}" placeholder="예: 주간 회의 안내">
+        </div>
         <label class="opt"><input type="radio" name="vis" value="public"${priv ? '' : ' checked'}> 공개 — 누구나 열람</label>
         <label class="opt"><input type="radio" name="vis" value="private"${priv ? ' checked' : ''}> 비공개 — 비밀번호를 아는 사람만 열람 (모든 탭에 적용)</label>
         <div class="field" id="setPwField" style="display:${priv ? '' : 'none'}">
@@ -1152,6 +1158,7 @@ function settingsSnippet(priv, exp, color) {
   var setPanel = document.getElementById('setPanel');
   var msgSet = document.getElementById('msgSet');
   var setPw = document.getElementById('setPw');
+  var setTitle = document.getElementById('setTitle');
   var setExp = document.getElementById('setExp');
   var setExpField = document.getElementById('setExpField');
   var expBtns = document.querySelectorAll('#expSel button');
@@ -1220,7 +1227,7 @@ function settingsSnippet(priv, exp, color) {
     fetch('/api/room/' + ROOM + '/settings', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ visibility: vis, password: setPw.value, expiresAt: expiresAt, color: colorSel || null })
+      body: JSON.stringify({ visibility: vis, password: setPw.value, title: setTitle.value, expiresAt: expiresAt, color: colorSel || null })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
       flash(msgSet, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '저장 실패 (HTTP ' + r.status + ')', true);

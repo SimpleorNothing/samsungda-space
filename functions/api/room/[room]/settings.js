@@ -1,7 +1,9 @@
-// POST /api/room/:room/settings — 방 설정 (공개/비공개 전환, 사용기한)
-//   body: { visibility?: 'public'|'private', password?: string, expiresAt?: 'YYYY-MM-DD'|null, color?: '#RRGGBB'|null }
+// POST /api/room/:room/settings — 방 설정 (공개/비공개 전환, 사용기한, 방 제목)
+//   body: { visibility?: 'public'|'private', password?: string, title?: string|null,
+//           expiresAt?: 'YYYY-MM-DD'|null, color?: '#RRGGBB'|null }
 //   - visibility 'private' + password → 새 비밀번호 설정 (이미 비공개면 password 생략 시 기존 유지)
 //   - visibility 'public' → 비밀번호 해제
+//   - title: 방 제목(표시 이름, 최대 100자) — 문자열이면 설정, null/''이면 제거, 키 없으면 변경 안 함
 //   - expiresAt: 문자열이면 설정, null/''이면 해제, 키 자체가 없으면 변경 안 함
 //   - color: 방 테마 색 — #rrggbb면 설정, null/''이면 기본색으로 복원, 키 없으면 변경 안 함
 // 비공개 방은 인증 필요. 새 비밀번호 설정 시 설정자에게 인증 쿠키 즉시 발급.
@@ -42,6 +44,16 @@ export async function onRequestPost(context) {
     meta.passwordHash = null;
   } else if (body.visibility !== undefined) {
     return json({ error: 'invalid visibility' }, 400);
+  }
+
+  if ('title' in body) {
+    if (body.title === null || body.title === '') {
+      meta.title = '';
+    } else if (typeof body.title === 'string' && body.title.length <= 100) {
+      meta.title = body.title.trim();
+    } else {
+      return json({ error: 'invalid title' }, 400);
+    }
   }
 
   if ('expiresAt' in body) {
