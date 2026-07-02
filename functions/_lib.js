@@ -491,6 +491,7 @@ function webTabMarkup(room, used, editor) {
       <div class="viewer"><iframe src="/${room}/view" title="${room}"></iframe></div>
       <div class="btn-row">
         <button id="openBtn">전체화면으로 열기</button>
+        <button id="dlBtn">HTML 다운로드</button>
         <button id="editBtn">내용 수정</button>
         <button class="danger" id="deleteBtn">삭제</button>
       </div>
@@ -508,6 +509,7 @@ function webTabMarkup(room, used, editor) {
       <div class="viewer"><iframe src="/${room}/view" title="${room}"></iframe></div>
       <div class="btn-row">
         <button id="openBtn">전체화면으로 열기</button>
+        <button id="dlBtn">HTML 다운로드</button>
         <button id="fileRepBtn">파일로 교체</button>
         <button id="srcRepBtn">소스로 교체</button>
         <button class="danger" id="deleteBtn">삭제</button>
@@ -909,6 +911,26 @@ function bambooSnippet() {
   loadBamboo();`;
 }
 
+// 게시된 HTML 원본 다운로드 — 전체화면 링크와 같은 /view 소스를 파일로 저장
+function downloadSnippet() {
+  return `
+  document.getElementById('dlBtn').addEventListener('click', function(){
+    flash(msgWeb, '다운로드 준비 중…');
+    fetch('/' + ROOM + '/view').then(function(r){
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(function(t){
+      var url = URL.createObjectURL(new Blob([t], { type: 'text/html' }));
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = ROOM + '.html';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      flash(msgWeb, '');
+    }).catch(function(e){ flash(msgWeb, '다운로드 실패: ' + e.message, true); });
+  });`;
+}
+
 // 웹페이지 탭 (상태별) — 비밀번호 설정은 방 설정 패널로 이관되어 게시 폼에서 제거됨
 function webSnippet(room, meta, editor, used) {
   if (!used && editor) {
@@ -1045,6 +1067,7 @@ function webSnippet(room, meta, editor, used) {
   document.getElementById('openBtn').addEventListener('click', function(){
     window.open('/' + ROOM + '/view', '_blank');
   });
+  ${downloadSnippet()}
 
   document.getElementById('editBtn').addEventListener('click', function(){
     flash(msgWeb, '내용 불러오는 중…');
@@ -1100,6 +1123,7 @@ function webSnippet(room, meta, editor, used) {
   document.getElementById('openBtn').addEventListener('click', function(){
     window.open('/' + ROOM + '/view', '_blank');
   });
+  ${downloadSnippet()}
 
   document.getElementById('fileRepBtn').addEventListener('click', function(){ input.click(); });
   input.addEventListener('change', function(){
