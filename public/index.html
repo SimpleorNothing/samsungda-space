@@ -265,6 +265,8 @@ section{margin-bottom:40px}
       <p>방 정리 모드를 켭니다. 켜면 각 방 카드에 <b>이름 변경</b> · <b>비우기</b> · <b>방 삭제</b> 버튼이 나타나고,
         상단에 <b>+ 구분선 추가</b> 버튼이 생깁니다. 구분선의 <b>구분선 삭제</b> 버튼으로 없앨 수도 있어요.
         다시 누르면 <b>관리 완료</b>로 바뀌며 정리 모드가 꺼집니다.</p>
+      <p>방 관리 모드에서 카드·구분선을 옮기거나 구분선을 추가·삭제하면 <b>서버에 저장</b>되어
+        모든 기기·브라우저에서 같은 배치로 보입니다.</p>
       <p><b>· 이름 변경</b> — 방 이름을 새로 짓습니다. 안의 메모·파일과 웹페이지, 설정은 그대로 유지되고 <b>주소도 새 이름으로 바뀝니다.</b><br>
         <b>· 비우기</b> — 방 안의 메모·파일, 게시된 웹페이지, 설정을 모두 지우고 <b>빈방으로 되돌립니다.</b> 방 자체는 그대로 남습니다.<br>
         <b>· 방 삭제</b> — 방의 모든 데이터를 지우고 <b>목록에서도 방을 없앱니다.</b> (같은 이름으로 빈방을 다시 추가하면 복구됩니다.)</p>
@@ -279,8 +281,9 @@ section{margin-bottom:40px}
     <div class="help-item">
       <h4><span class="tag">정렬</span>카드 드래그 · 구분선</h4>
       <p>카드를 끌어다 놓으면 방 순서를 바꿀 수 있습니다. 목록에는 <b>구분선</b>을 여러 개 둘 수 있어, 카드를 구분선
-        <b>위/아래로 옮겨</b> 자주 쓰는 방과 그 외 방을 나눠 둘 수 있어요. 구분선 자체도 끌어서 옮길 수 있습니다.
-        순서와 구분선 위치는 <b>서버에 저장</b>되어 어느 기기·브라우저에서 열어도 동일하게 보입니다.</p>
+        <b>위/아래로 옮겨</b> 자주 쓰는 방과 그 외 방을 나눠 둘 수 있어요. 구분선 자체도 끌어서 옮길 수 있습니다.</p>
+      <p><b>평소에 옮기면</b> 이 브라우저에만 저장되어 나만의 배치가 되고,
+        <b>방 관리 모드에서 옮기면</b> 서버에 저장되어 모든 기기·브라우저에서 동일한 배치로 보입니다.</p>
     </div>
 
     <div class="help-item">
@@ -309,8 +312,11 @@ section{margin-bottom:40px}
   var helpClose = document.getElementById('helpClose');
   var roomsCache = [];
   var manage = false;
-  var dividerPositions = [];   // 구분선 위치들 — "이 인덱스의 카드 앞" (서버 저장, 여러 개 가능)
-  // 예전에 브라우저(localStorage)에 저장하던 배치 — 서버로 1회 이관할 때만 사용
+  var dividerPositions = [];   // 구분선 위치들 — "이 인덱스의 카드 앞" (여러 개 가능)
+  // 배치 저장은 두 겹: 방 관리 모드에서 옮기면 서버(모든 기기 공통),
+  // 평소에 옮기면 이 브라우저(localStorage)에만 저장 — 로컬 배치가 있으면 서버 배치보다 우선
+  var LAYOUT_KEY = 'samsungda_room_layout';
+  // 예전 키(순서·구분선 분리 저장) — 새 로컬 배치 키로 1회 변환할 때만 사용
   var ORDER_KEY = 'samsungda_room_order';
   var DIVIDER_KEY = 'samsungda_room_divider';
 
@@ -440,8 +446,10 @@ section{margin-bottom:40px}
     dividerPositions = divs;
   }
 
-  // 배치(방 순서·구분선 위치)를 서버에 저장 — 어느 기기에서 열어도 동일하게 보인다
+  // 배치(방 순서·구분선 위치)를 서버에 저장 — 모든 기기·브라우저에 공통 적용
+  // 서버에 저장하면 이 브라우저 전용 배치는 지워 서버 배치를 따르게 한다
   function saveLayout(){
+    clearLocalLayout();
     fetch('/api/rooms', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
@@ -460,33 +468,56 @@ section{margin-bottom:40px}
     });
   }
 
-  // 예전 브라우저 저장(localStorage) 배치를 서버로 1회 이관
-  function migrateLocalLayout(){
-    var migrated = false;
+  // 배치를 이 브라우저에만 저장 (방 관리 밖에서 옮겼을 때)
+  function saveLocalLayout(){
     try{
-      var saved = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null');
-      if(Array.isArray(saved)){
-        var map = {};
-        roomsCache.forEach(function(r){ map[r.id] = r; });
-        var ordered = [];
-        saved.forEach(function(id){ if(map[id]){ ordered.push(map[id]); delete map[id]; } });
-        Object.values(map).forEach(function(r){ ordered.push(r); });
-        roomsCache = ordered;
-        migrated = true;
-      }
-      var d = JSON.parse(localStorage.getItem(DIVIDER_KEY));
-      if(typeof d === 'number' && d >= 0){
-        dividerPositions = [Math.min(d, roomsCache.length)];
-        migrated = true;
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify({
+        order: roomsCache.map(function(r){ return r.id; }),
+        dividers: dividerPositions
+      }));
+    }catch(e){}
+  }
+
+  function clearLocalLayout(){
+    try{ localStorage.removeItem(LAYOUT_KEY); }catch(e){}
+  }
+
+  // 이 브라우저 전용 배치가 있으면 서버 배치 위에 덧입힌다
+  // (저장 이후 생긴 새 방은 끝에, 삭제된 방 이름은 걸러서)
+  function applyLocalLayout(){
+    try{
+      var saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
+      if(!saved || !Array.isArray(saved.order)) return;
+      var map = {};
+      roomsCache.forEach(function(r){ map[r.id] = r; });
+      var ordered = [];
+      saved.order.forEach(function(id){ if(map[id]){ ordered.push(map[id]); delete map[id]; } });
+      Object.values(map).forEach(function(r){ ordered.push(r); });
+      roomsCache = ordered;
+      if(Array.isArray(saved.dividers)){
+        dividerPositions = saved.dividers
+          .filter(function(p){ return typeof p === 'number' && p >= 0; })
+          .map(function(p){ return Math.min(p, roomsCache.length); });
       }
     }catch(e){}
-    if(migrated){
-      saveLayout();
-      try{
-        localStorage.removeItem(ORDER_KEY);
-        localStorage.removeItem(DIVIDER_KEY);
-      }catch(e){}
-    }
+  }
+
+  // 예전 키(순서·구분선 분리 저장)를 새 로컬 배치 키로 1회 변환
+  function migrateLegacyKeys(){
+    try{
+      var order = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null');
+      var d = JSON.parse(localStorage.getItem(DIVIDER_KEY) || 'null');
+      if(Array.isArray(order)){
+        if(!localStorage.getItem(LAYOUT_KEY)){
+          localStorage.setItem(LAYOUT_KEY, JSON.stringify({
+            order: order,
+            dividers: (typeof d === 'number' && d >= 0) ? [d] : [order.length]
+          }));
+        }
+      }
+      localStorage.removeItem(ORDER_KEY);
+      localStorage.removeItem(DIVIDER_KEY);
+    }catch(e){}
   }
 
   // ----- 포인터 기반 드래그 정렬 -----
@@ -497,10 +528,53 @@ section{margin-bottom:40px}
   var press = null;           // { el, pid, x0, y0, dragging }
   var suppressClick = false;  // 드래그 직후 따라오는 클릭(방 이동) 1회 무시
 
+  // FLIP 애니메이션 — 드래그로 카드가 밀려날 때 순간이동 대신 제자리에서 미끄러지게.
+  // 이동 전 위치를 기억했다가, DOM을 옮긴 뒤 옛 위치→새 위치로 transform을 되감는다.
+  var flipAnims = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+  function withFlip(mutate){
+    if(!flipAnims || !grid.firstElementChild || typeof grid.firstElementChild.animate !== 'function'){
+      mutate();
+      return;
+    }
+    var els = Array.prototype.slice.call(grid.children);
+    // 진행 중인 애니메이션의 중간 위치를 기준으로 삼아, 연속 이동도 끊김 없이 이어진다
+    var rects = els.map(function(el){ return el.getBoundingClientRect(); });
+    mutate();
+    els.forEach(function(el, i){
+      if(el.parentNode !== grid) return;
+      var prev = flipAnims.get(el);
+      if(prev) prev.cancel();
+      var now = el.getBoundingClientRect();
+      var dx = rects[i].left - now.left;
+      var dy = rects[i].top - now.top;
+      if(!dx && !dy) return;
+      var anim = el.animate(
+        [{ transform: 'translate(' + dx + 'px,' + dy + 'px)' }, { transform: 'none' }],
+        { duration: 180, easing: 'ease' }
+      );
+      flipAnims.set(el, anim);
+    });
+  }
+
   function clearDividerMark(){
     Array.prototype.forEach.call(grid.querySelectorAll('.divider.drag-over'), function(d){
       d.classList.remove('drag-over');
     });
+  }
+
+  // FLIP 애니메이션 중인 요소의 "레이아웃상 위치" — transform(미끄러지는 중간 위치)을 걷어낸 값.
+  // 시각적 위치로 판정하면 방금 밀려난 카드가 커서 밑으로 되돌아와 자리가 튕기는 되먹임이 생긴다.
+  function layoutRect(el){
+    var r = el.getBoundingClientRect();
+    var t = getComputedStyle(el).transform;
+    if(t && t !== 'none'){
+      var m = t.match(/^matrix\(([^)]+)\)$/);
+      if(m){
+        var p = m[1].split(',');
+        return { left: r.left - parseFloat(p[4]), top: r.top - parseFloat(p[5]), width: r.width, height: r.height };
+      }
+    }
+    return r;
   }
 
   // 커서 위치 기준으로 "이 요소 앞에 끼워넣어야 한다"는 대상(카드 또는 구분선)을 찾는다.
@@ -508,7 +582,7 @@ section{margin-bottom:40px}
     var els = Array.prototype.slice.call(grid.querySelectorAll('.card:not(.dragging), .divider:not(.dragging)'));
     var best = null, bestDist = Infinity;
     els.forEach(function(el){
-      var b = el.getBoundingClientRect();
+      var b = layoutRect(el);
       var cx = b.left + b.width/2, cy = b.top + b.height/2;
       var before = (y < cy - b.height/2) || (Math.abs(y - cy) <= b.height/2 && x < cx);
       if(!before) return;
@@ -542,8 +616,10 @@ section{margin-bottom:40px}
     var dragEl = press.el;
     var ref = afterTarget(e.clientX, e.clientY);
     if(ref !== dragEl){
-      if(ref) grid.insertBefore(dragEl, ref);
-      else grid.appendChild(dragEl);
+      withFlip(function(){
+        if(ref) grid.insertBefore(dragEl, ref);
+        else grid.appendChild(dragEl);
+      });
     }
     clearDividerMark();
     [dragEl.previousElementSibling, dragEl.nextElementSibling].forEach(function(n){
@@ -565,7 +641,9 @@ section{margin-bottom:40px}
       suppressClick = true;       // 방금 끝난 드래그의 클릭은 방 이동으로 처리하지 않음
       if(commit){
         syncFromDom();            // DOM 순서 기준으로 방 순서·구분선 위치 재계산
-        saveLayout();             // 서버에 저장 — 어느 기기에서 열어도 동일
+        // 방 관리 모드에서 옮기면 서버(모든 기기 공통), 평소에는 이 브라우저에만 저장
+        if(manage) saveLayout();
+        else saveLocalLayout();
       }
     }
   }
@@ -609,7 +687,14 @@ section{margin-bottom:40px}
       body: JSON.stringify({ id: r.id, newId: name })
     }).then(function(res){
       if(res.ok){
-        // 서버가 저장된 배치에서도 옛 이름을 새 이름으로 치환하므로 다시 불러오기만 하면 됨
+        // 서버 배치는 서버가 치환해 주고, 이 브라우저 전용 배치는 여기서 치환해 자리 유지
+        try{
+          var saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
+          if(saved && Array.isArray(saved.order)){
+            var i = saved.order.indexOf(r.id);
+            if(i !== -1){ saved.order[i] = name; localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved)); }
+          }
+        }catch(e){}
         loadRooms();
         return;
       }
@@ -665,12 +750,10 @@ section{margin-bottom:40px}
       .then(function(data){
         roomsCache = data.rooms || [];
         dividerPositions = Array.isArray(data.dividers) ? data.dividers : [];
-        if(!data.layoutSaved){
-          // 서버에 저장된 배치가 아직 없으면: 예전 기본값(맨 끝 구분선 1개)을 보여주고,
-          // 이 브라우저에 남은 예전 localStorage 배치가 있으면 서버로 이관한다.
-          dividerPositions = [roomsCache.length];
-          migrateLocalLayout();
-        }
+        // 서버에 저장된 배치가 아직 없으면 예전 기본값(맨 끝 구분선 1개)
+        if(!data.layoutSaved) dividerPositions = [roomsCache.length];
+        migrateLegacyKeys();
+        applyLocalLayout();   // 이 브라우저 전용 배치가 있으면 서버 배치보다 우선
         render();
         msg.className = 'status-msg';
         msg.textContent = '';
