@@ -239,6 +239,8 @@ textarea.input:focus{border-color:var(--brand)}
 .thumb .rm:hover{background:#ffe1e1;color:#c0392b;border-color:#ffe1e1}
 .meta-line{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted);margin-top:12px}
 button.mini{font-size:15px;padding:4px 10px;margin-left:auto}
+.meta-line .actions{display:flex;align-items:center;gap:8px}
+.meta-line .actions button.mini{margin-left:0}
 .empty-line{font-size:15px;color:var(--muted);margin-top:16px}
 .count{font-size:15px;color:var(--muted);margin-top:6px;text-align:right}
 .head-flex{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
