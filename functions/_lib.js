@@ -770,8 +770,9 @@ function notesSnippet() {
       var s = document.createElement('span'); s.textContent = n.createdAt; m.appendChild(s);
       var actions = document.createElement('div'); actions.className = 'actions';
 
+      // 공유 링크는 쿼리 방식(?note=) — #해시는 메신저 인앱 브라우저·현관 게이트에서 유실될 수 있음
       var linkBtn = document.createElement('button'); linkBtn.className = 'mini'; linkBtn.textContent = '링크 복사';
-      linkBtn.addEventListener('click', function(){ copyText(location.origin + '/' + ROOM + '#note-' + n.id, linkBtn); });
+      linkBtn.addEventListener('click', function(){ copyText(location.origin + '/' + ROOM + '?note=' + n.id, linkBtn); });
       actions.appendChild(linkBtn);
 
       if(n.text){
@@ -798,14 +799,21 @@ function notesSnippet() {
     });
   }
 
-  // #note-{id} 해시로 진입하면 메모 탭을 열고 해당 메모로 스크롤·강조 (최초 렌더 시 한 번만)
+  // ?note={id} 쿼리(또는 구형 #note-{id} 해시)로 진입하면 메모 탭을 열고
+  // 해당 메모로 스크롤·강조 (최초 렌더 시 한 번만)
+  function linkedNoteId(){
+    var q = new URLSearchParams(location.search).get('note');
+    if(q && /^[0-9a-f]+$/.test(q)) return q;
+    var m = /^#note-([0-9a-f]+)$/.exec(location.hash);
+    return m ? m[1] : null;
+  }
   var linkedNoteShown = false;
   function focusLinkedNote(){
     if(linkedNoteShown) return;
-    var m = /^#note-([0-9a-f]+)$/.exec(location.hash);
-    if(!m) return;
+    var id = linkedNoteId();
+    if(!id) return;
     linkedNoteShown = true;
-    var el = document.getElementById('note-' + m[1]);
+    var el = document.getElementById('note-' + id);
     if(!el){ flash(msgNotes, '링크된 메모를 찾을 수 없습니다. 삭제되었을 수 있습니다.', true); return; }
     showTab('notes');
     el.classList.add('linked');
