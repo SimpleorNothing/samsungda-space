@@ -228,6 +228,7 @@ textarea.input:focus{border-color:var(--brand)}
 .note .imgs img{max-width:220px;max-height:220px;border:1.5px solid var(--border);border-radius:10px;
   object-fit:cover;background:#fff;transition:.15s}
 .note .imgs a:hover img{border-color:var(--brand)}
+.note.linked{border-color:var(--brand);box-shadow:0 0 0 2.5px var(--brand)}
 .previews{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 .previews:empty{display:none}
 .thumb{position:relative;line-height:0}
@@ -739,7 +740,7 @@ function notesSnippet() {
       return;
     }
     items.forEach(function(n){
-      var card = document.createElement('div'); card.className = 'note';
+      var card = document.createElement('div'); card.className = 'note'; card.id = 'note-' + n.id;
       if(n.title){ var h = document.createElement('h3'); h.textContent = n.title; card.appendChild(h); }
       if(n.text){ var p = document.createElement('p'); p.textContent = n.text; card.appendChild(p); }
       if(n.files && n.files.length){
@@ -767,6 +768,10 @@ function notesSnippet() {
       var s = document.createElement('span'); s.textContent = n.createdAt; m.appendChild(s);
       var actions = document.createElement('div'); actions.className = 'actions';
 
+      var linkBtn = document.createElement('button'); linkBtn.className = 'mini'; linkBtn.textContent = '링크 복사';
+      linkBtn.addEventListener('click', function(){ copyText(location.origin + '/' + ROOM + '#note-' + n.id, linkBtn); });
+      actions.appendChild(linkBtn);
+
       if(n.text){
         var copyBtn = document.createElement('button'); copyBtn.className = 'mini'; copyBtn.textContent = '텍스트 복사';
         copyBtn.addEventListener('click', function(){ copyText(n.text, copyBtn); });
@@ -791,10 +796,24 @@ function notesSnippet() {
     });
   }
 
+  // #note-{id} 해시로 진입하면 메모 탭을 열고 해당 메모로 스크롤·강조 (최초 렌더 시 한 번만)
+  var linkedNoteShown = false;
+  function focusLinkedNote(){
+    if(linkedNoteShown) return;
+    var m = /^#note-([0-9a-f]+)$/.exec(location.hash);
+    if(!m) return;
+    linkedNoteShown = true;
+    var el = document.getElementById('note-' + m[1]);
+    if(!el){ flash(msgNotes, '링크된 메모를 찾을 수 없습니다. 삭제되었을 수 있습니다.', true); return; }
+    showTab('notes');
+    el.classList.add('linked');
+    el.scrollIntoView({ block: 'center' });
+  }
+
   function loadNotes(){
     fetch('/api/room/' + ROOM + '/notes')
       .then(function(r){ return r.ok ? r.json() : { items: [] }; })
-      .then(function(d){ renderNotes(d.items || []); })
+      .then(function(d){ renderNotes(d.items || []); focusLinkedNote(); })
       .catch(function(){ noteList.innerHTML = '<p class="empty-line">목록을 불러오지 못했습니다.</p>'; });
   }
 
