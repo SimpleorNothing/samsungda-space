@@ -185,7 +185,7 @@ button{font-family:inherit;font-size:15px;font-weight:600;
   padding:8px 16px;cursor:pointer;transition:.15s;}
 button:hover{border-color:var(--brand);color:var(--brand)}
 button.danger:hover{background:#F5E4E2;color:#B02E24;border-color:#F5E4E2}
-button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button.primary{background:#46647E;border-color:#46647E;color:#fff}
 button.primary:hover{background:#37506A;border-color:#37506A;color:#fff}
 button:disabled{opacity:.5;cursor:default}
 .btn-row{display:flex;gap:8px;margin-top:16px}
