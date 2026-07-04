@@ -153,7 +153,7 @@ export function html(body) {
 // ---------- 공통 스타일 (space-prototype.html 기반 + 워크스페이스 확장) ----------
 
 export const BASE_CSS = `
-:root{--bg:#ffffff;--surface:#f6f7f9;--text:#1a1d21;--muted:#5b6470;--border:#e6e9ee;--brand:#1257d6;}
+:root{--bg:#EDEFEC;--surface:#FFFFFF;--text:#17222D;--muted:#5C6B79;--border:#D3D9D6;--brand:#46647E;}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);padding:56px 24px;
   font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;}
@@ -172,7 +172,7 @@ section{margin-bottom:40px}
 .dropzone{border:1.5px dashed var(--border);border-radius:0;padding:22px;text-align:center;
   font-size:15px;color:var(--muted);margin-top:16px;transition:.15s;cursor:pointer;}
 .dropzone:hover{border-color:var(--brand)}
-.dropzone.is-over{border-color:var(--brand);background:rgba(18,87,214,.06)}
+.dropzone.is-over{border-color:var(--brand);background:rgba(70,100,126,.06)}
 .opt{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:15px;color:var(--muted)}
 .opt input{accent-color:var(--brand)}
 .field{margin-top:14px}
@@ -181,21 +181,21 @@ section{margin-bottom:40px}
   background:var(--bg);border:1.5px solid var(--border);border-radius:0;padding:9px 12px;outline:none;}
 .field input:focus{border-color:var(--brand)}
 button{font-family:inherit;font-size:15px;font-weight:600;
-  border:1.5px solid var(--border);border-radius:0;background:#eef1f5;color:var(--text);
+  border:1.5px solid var(--border);border-radius:0;background:#E7EAE6;color:var(--text);
   padding:8px 16px;cursor:pointer;transition:.15s;}
 button:hover{border-color:var(--brand);color:var(--brand)}
-button.danger:hover{background:#ffe1e1;color:#c0392b;border-color:#ffe1e1}
+button.danger:hover{background:#F5E4E2;color:#B02E24;border-color:#F5E4E2}
 button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
-button.primary:hover{background:#0e47b0;border-color:#0e47b0;color:#fff}
+button.primary:hover{background:#37506A;border-color:#37506A;color:#fff}
 button:disabled{opacity:.5;cursor:default}
 .btn-row{display:flex;gap:8px;margin-top:16px}
 .btn-row-end{justify-content:flex-end}
-textarea.input.is-over{border-color:var(--brand);background:rgba(18,87,214,.06)}
+textarea.input.is-over{border-color:var(--brand);background:rgba(70,100,126,.06)}
 .viewer{border:1.5px solid var(--border);border-radius:0;margin-top:16px;overflow:hidden;background:var(--surface);}
 .viewer iframe{display:block;width:100%;height:70vh;border:none;background:#fff}
 .status-line{font-size:15px;color:var(--muted);margin-top:6px}
 .status-msg{font-size:15px;color:var(--muted);margin-top:12px;min-height:18px}
-.status-msg.err{color:#c0392b}
+.status-msg.err{color:#B02E24}
 textarea.md{width:100%;min-height:280px;margin-top:16px;font-family:inherit;font-size:15px;line-height:1.7;
   color:var(--text);background:var(--bg);border:1.5px solid var(--border);border-radius:0;
   padding:14px 16px;outline:none;resize:vertical;}
@@ -215,7 +215,7 @@ textarea.input:focus{border-color:var(--brand)}
 .tabpanel{display:none}
 .tabpanel.active{display:block}
 .subtabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-.subtabs button.active{border-color:var(--brand);color:var(--brand);background:rgba(18,87,214,.06)}
+.subtabs button.active{border-color:var(--brand);color:var(--brand);background:rgba(70,100,126,.06)}
 .note{background:var(--surface);border:1.5px solid var(--border);border-radius:0;padding:18px 20px;margin-top:12px}
 .note h3{font-size:15px;font-weight:700}
 .note p{font-size:15px;line-height:1.75;margin-top:6px;white-space:pre-wrap;word-break:break-word}
@@ -236,7 +236,7 @@ textarea.input:focus{border-color:var(--brand)}
 .thumb .rm{position:absolute;top:-7px;right:-7px;width:20px;height:20px;padding:0;border-radius:50%;
   border:1.5px solid var(--border);background:#fff;color:var(--muted);font-size:13px;font-weight:700;
   line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.thumb .rm:hover{background:#ffe1e1;color:#c0392b;border-color:#ffe1e1}
+.thumb .rm:hover{background:#F5E4E2;color:#B02E24;border-color:#F5E4E2}
 .meta-line{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted);margin-top:12px}
 button.mini{font-size:15px;padding:4px 10px;margin-left:auto}
 .meta-line .actions{display:flex;align-items:center;gap:8px}
@@ -246,8 +246,8 @@ button.mini{font-size:15px;padding:4px 10px;margin-left:auto}
 .head-flex{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .head-side{display:flex;align-items:center;gap:8px;flex:none;padding-top:4px}
 .badge{display:inline-block;font-size:15px;font-weight:600;padding:3px 9px;border-radius:0}
-.badge.open{background:#eef1f5;color:var(--muted)}
-.badge.lock{background:#fdecea;color:#c0392b}
+.badge.open{background:#E7EAE6;color:var(--muted)}
+.badge.lock{background:#F5E4E2;color:#B02E24}
 .hint{font-weight:400;color:var(--muted)}
 .swatches{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
 .swatches button{width:28px;height:28px;border-radius:50%;padding:0;border:2px solid #fff;
@@ -258,7 +258,7 @@ button.mini{font-size:15px;padding:4px 10px;margin-left:auto}
 
 // 마크다운 본문 타이포그래피 — 미리보기(.preview)와 게시 문서가 공유
 export const MD_CSS = `
-.md-body{font-size:15px;line-height:1.75;color:#1a1d21}
+.md-body{font-size:15px;line-height:1.75;color:#17222D}
 .md-body h1{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:28px 0 12px}
 .md-body h1:first-child{margin-top:0}
 .md-body h2{font-size:20px;font-weight:700;letter-spacing:-0.3px;margin:24px 0 10px}
@@ -266,16 +266,16 @@ export const MD_CSS = `
 .md-body p{margin:10px 0}
 .md-body ul,.md-body ol{margin:10px 0 10px 22px}
 .md-body li{margin:4px 0}
-.md-body a{color:#1257d6}
-.md-body code{background:#f6f7f9;border:1px solid #e6e9ee;border-radius:0;padding:1px 5px;font-size:15px}
-.md-body pre{background:#f6f7f9;border:1px solid #e6e9ee;border-radius:0;padding:14px 16px;overflow:auto;margin:12px 0}
+.md-body a{color:#46647E}
+.md-body code{background:#EDEFEC;border:1px solid #D3D9D6;border-radius:0;padding:1px 5px;font-size:15px}
+.md-body pre{background:#EDEFEC;border:1px solid #D3D9D6;border-radius:0;padding:14px 16px;overflow:auto;margin:12px 0}
 .md-body pre code{background:none;border:none;padding:0}
-.md-body blockquote{border-left:3px solid #1257d6;margin:12px 0;padding:2px 0 2px 14px;color:#5b6470}
+.md-body blockquote{border-left:3px solid #46647E;margin:12px 0;padding:2px 0 2px 14px;color:#5C6B79}
 .md-body table{border-collapse:collapse;margin:12px 0;width:100%}
-.md-body th,.md-body td{border:1px solid #e6e9ee;padding:7px 10px;font-size:15px;text-align:left}
-.md-body th{background:#f6f7f9;font-weight:700}
+.md-body th,.md-body td{border:1px solid #D3D9D6;padding:7px 10px;font-size:15px;text-align:left}
+.md-body th{background:#EDEFEC;font-weight:700}
 .md-body img{max-width:100%}
-.md-body hr{border:none;border-top:1px solid #e6e9ee;margin:20px 0}
+.md-body hr{border:none;border-top:1px solid #D3D9D6;margin:20px 0}
 `;
 
 const FONT_LINK = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">`;
@@ -565,7 +565,7 @@ function editorCoreSnippet() {
   function render(){
     var t = md.value;
     if(t.trim()){ pv.innerHTML = marked.parse(t); }
-    else { pv.innerHTML = '<p style="color:#5b6470;font-size:15px">위 입력창에 작성하면 여기에 미리보기가 표시됩니다.</p>'; }
+    else { pv.innerHTML = '<p style="color:#5C6B79;font-size:15px">위 입력창에 작성하면 여기에 미리보기가 표시됩니다.</p>'; }
   }`;
 }
 
