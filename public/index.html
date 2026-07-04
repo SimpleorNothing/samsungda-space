@@ -161,6 +161,9 @@ section{margin-bottom:40px}
 .addbtn:hover{border-color:var(--brand);color:var(--brand)}
 .addbtn:disabled{opacity:.5;cursor:default}
 .addbtn.on{border-color:var(--brand);color:var(--brand);background:rgba(70,100,126,.06)}
+/* 상단 버튼 3개 — 폭을 좁혀 동일 너비로 통일. '+ 구분선 추가'(관리 모드)만 텍스트가 길어 자동 폭 예외. */
+.head-btns .addbtn{width:88px;padding-left:4px;padding-right:4px;text-align:center}
+.head-btns #addDivBtn{width:auto;padding-left:12px;padding-right:12px}
 
 
 /* ───── 사용방법 모달 ───── */
@@ -208,7 +211,7 @@ section{margin-bottom:40px}
   h1{font-size:25px}
   .head-row{flex-wrap:wrap}
   .head-btns{width:100%}
-  .head-btns .addbtn{flex:1}
+  .head-btns .addbtn{flex:1;width:auto;padding-left:6px;padding-right:6px}
   .modal{padding:22px 18px}
 }
 </style>
