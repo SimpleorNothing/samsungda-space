@@ -281,16 +281,14 @@ export const MD_CSS = `
 const FONT_LINK = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">`;
 const MARKED_LINK = `<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>`;
 
-// 방 테마 색 팔레트 — 선명한 모던 톤 (미설정 시 기본 브랜드 블루 유지)
+// 방 테마 색 팔레트 — 어스 뉴트럴 톤 (미설정 시 기본 브랜드 블루 유지)
 const COLORS = [
-  ['#2F6DB0', '블루'],
-  ['#2E8B57', '그린'],
-  ['#7E52B0', '퍼플'],
-  ['#C89320', '골드'],
-  ['#C0392B', '레드'],
-  ['#2E9AA8', '틸'],
-  ['#C25A93', '마젠타'],
-  ['#D2691E', '오렌지'],
+  ['#B97A55', '클레이'],
+  ['#8A8A4A', '올리브'],
+  ['#6F9276', '세이지'],
+  ['#C0A25E', '샌드'],
+  ['#8A8078', '스톤'],
+  ['#6E88A6', '더스크'],
 ];
 
 // ---------- 방 페이지 ----------
