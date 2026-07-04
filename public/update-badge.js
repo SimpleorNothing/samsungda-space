@@ -42,7 +42,7 @@
       var d = new Date(iso);
       if (isNaN(d)) return iso;
       var p = new Intl.DateTimeFormat('ko-KR', {
-        timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric'
+        timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
       }).formatToParts(d).reduce(function (o, x) { o[x.type] = x.value; return o; }, {});
       return p.year + '.' + p.month + '.' + p.day;
     } catch (e) { return iso; }
