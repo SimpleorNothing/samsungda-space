@@ -103,7 +103,6 @@ section{margin-bottom:40px}
   padding:5px 12px;cursor:pointer;transition:.15s;
 }
 .mgr button:hover{background:#F5E4E2;color:#B02E24;border-color:#F5E4E2}
-.mgr button.rename:hover{background:rgba(70,100,126,.08);color:var(--brand);border-color:rgba(70,100,126,.2)}
 .card.off{background:#E7EAE6;border-color:#D9DDD7}
 .card.off h3{color:#9AA6A0}
 .card.off h3::after{opacity:.3}
@@ -273,12 +272,12 @@ section{margin-bottom:40px}
 
     <div class="help-item">
       <h4><span class="tag">메뉴</span>방 관리</h4>
-      <p>방 정리 모드를 켭니다. 켜면 각 방 카드에 <b>이름 변경</b> · <b>비우기</b> · <b>방 삭제</b> 버튼이 나타나고,
+      <p>방 정리 모드를 켭니다. 켜면 각 방 카드에 <b>비우기</b> · <b>방 삭제</b> 버튼이 나타나고,
         상단에 <b>+ 구분선 추가</b> 버튼이 생깁니다. 구분선의 <b>구분선 삭제</b> 버튼으로 없앨 수도 있어요.
         다시 누르면 <b>관리 완료</b>로 바뀌며 정리 모드가 꺼집니다.</p>
       <p>방 관리 모드에서 카드·구분선을 옮기거나 구분선을 추가·삭제하면 <b>서버에 저장</b>되어
         모든 기기·브라우저에서 같은 배치로 보입니다.</p>
-      <p><b>· 이름 변경</b> — 방 이름을 새로 짓습니다. 안의 메모·파일과 웹페이지, 설정은 그대로 유지되고 <b>주소도 새 이름으로 바뀝니다.</b><br>
+      <p><b>· 이름 변경</b>은 각 방에 들어가 <b>방 설정</b>에서 할 수 있습니다. 안의 메모·파일과 웹페이지, 설정은 그대로 유지되고 <b>주소도 새 이름으로 바뀝니다.</b><br>
         <b>· 비우기</b> — 방 안의 메모·파일, 게시된 웹페이지, 설정을 모두 지우고 <b>빈방으로 되돌립니다.</b> 방 자체는 그대로 남습니다.<br>
         <b>· 방 삭제</b> — 방의 모든 데이터를 지우고 <b>목록에서도 방을 없앱니다.</b> (같은 이름으로 빈방을 다시 추가하면 복구됩니다.)</p>
     </div>
@@ -412,19 +411,6 @@ section{margin-bottom:40px}
       if(manage){
         var mgr = document.createElement('div');
         mgr.className = 'mgr';
-        // 에디터 방(autoweb)은 동작이 이름에 묶여 있어 이름 변경 불가
-        if(!r.editor){
-          var renBtn = document.createElement('button');
-          renBtn.type = 'button';
-          renBtn.className = 'rename';
-          renBtn.textContent = '이름 변경';
-          renBtn.addEventListener('click', function(e){
-            e.preventDefault();
-            e.stopPropagation();
-            renameRoom(r);
-          });
-          mgr.appendChild(renBtn);
-        }
         [['비우기', 'clear'], ['방 삭제', 'delete']].forEach(function(def){
           var btn = document.createElement('button');
           btn.type = 'button';
@@ -679,53 +665,6 @@ section{margin-bottom:40px}
   grid.addEventListener('click', function(e){
     if(suppressClick){ e.preventDefault(); e.stopPropagation(); suppressClick = false; }
   }, true);
-
-  function renameRoom(r){
-    var name = (window.prompt(
-      "'" + r.id + "' 방의 새 이름을 입력하세요. 이름이 곧 주소가 됩니다.\n(영문·숫자·하이픈(-)·언더스코어(_), 최대 40자)",
-      r.id
-    ) || '').trim();
-    if(!name || name === r.id) return;
-    if(!/^[A-Za-z0-9_-]{1,40}$/.test(name)){
-      window.alert('이름에는 영문·숫자·하이픈(-)·언더스코어(_)만 쓸 수 있어요. (공백·한글·특수문자 불가)');
-      return;
-    }
-
-    var headers = { 'content-type': 'application/json' };
-    if(r.locked){
-      var pw = window.prompt('비공개 방입니다. 비밀번호를 입력하세요.');
-      if(pw === null) return;
-      headers['x-room-password'] = pw;
-    }
-    msg.className = 'status-msg';
-    msg.textContent = '이름 변경 중…';
-    fetch('/api/rooms', {
-      method: 'PATCH',
-      headers: headers,
-      body: JSON.stringify({ id: r.id, newId: name })
-    }).then(function(res){
-      if(res.ok){
-        // 서버 배치는 서버가 치환해 주고, 이 브라우저 전용 배치는 여기서 치환해 자리 유지
-        try{
-          var saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
-          if(saved && Array.isArray(saved.order)){
-            var i = saved.order.indexOf(r.id);
-            if(i !== -1){ saved.order[i] = name; localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved)); }
-          }
-        }catch(e){}
-        loadRooms();
-        return;
-      }
-      msg.className = 'status-msg err';
-      if(res.status === 409){ msg.textContent = '이미 같은 이름의 방이 있어요.'; }
-      else if(res.status === 401){ msg.textContent = '비밀번호가 올바르지 않습니다.'; }
-      else if(res.status === 400){ msg.textContent = '사용할 수 없는 이름이거나 이름을 바꿀 수 없는 방이에요.'; }
-      else { msg.textContent = '이름 변경 실패 (HTTP ' + res.status + ')'; }
-    }).catch(function(e){
-      msg.className = 'status-msg err';
-      msg.textContent = '이름 변경 실패: ' + e.message;
-    });
-  }
 
   function destroyRoom(r, mode){
     var q = mode === 'clear'
