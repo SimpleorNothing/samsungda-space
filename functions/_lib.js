@@ -221,6 +221,13 @@ textarea.input:focus{border-color:var(--brand)}
 .note p{font-size:15px;line-height:1.75;margin-top:6px;white-space:pre-wrap;word-break:break-word}
 .note p.editable{cursor:pointer}
 .note p.editable:hover{background:rgba(70,100,126,.05)}
+.note .cl{margin-top:6px}
+.note .cl-row{display:flex;align-items:flex-start;gap:8px;padding:3px 0;font-size:15px;line-height:1.6}
+.note .cl-row input{width:16px;height:16px;margin-top:3px;accent-color:var(--brand);cursor:pointer;flex:none}
+.note .cl-row span{white-space:pre-wrap;word-break:break-word;cursor:pointer}
+.note .cl-row.done span{color:var(--muted);text-decoration:line-through}
+.note .cl-text{font-size:15px;line-height:1.75;white-space:pre-wrap;word-break:break-word;cursor:pointer}
+#nCheck.active{border-color:var(--brand);color:var(--brand);background:rgba(70,100,126,.06)}
 .note .files{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
 .note .files a{font-size:15px;color:var(--brand);text-decoration:none;background:#fff;
   border:1.5px solid var(--border);border-radius:0;padding:5px 10px;transition:.15s}
@@ -397,7 +404,7 @@ export function roomPage(room, meta, authorized, hasPage) {
           <div class="dropzone" id="nDrop">이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기</div>
           <input id="nFiles" type="file" multiple hidden>
           <div class="previews" id="nPreview"></div>
-          <div class="btn-row btn-row-end"><button id="nSave" class="primary">저장</button></div>
+          <div class="btn-row btn-row-end"><button id="nCheck" type="button" title="한 줄에 한 항목씩 — 저장 시 체크박스 목록으로 변환">☑ 체크리스트</button><button id="nSave" class="primary">저장</button></div>
           <div class="status-msg" id="msgNotes"></div>
         </div>
         <div id="noteList"></div>
@@ -586,6 +593,19 @@ function notesSnippet() {
   var nPreview = document.getElementById('nPreview');
   var DROP_HINT = '이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기';
 
+  // 체크리스트 문법: '[ ] 항목' / '[x] 항목' — 저장된 메모에서 체크박스로 렌더·토글
+  var CL_RE = /^\\[( |x|X)\\]\\s?(.*)$/;
+  var TEXT_HINT = '내용을 입력하세요';
+  var CL_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환)';
+  var clMode = false;
+  var nCheck = document.getElementById('nCheck');
+  nCheck.addEventListener('click', function(){
+    clMode = !clMode;
+    nCheck.className = clMode ? 'active' : '';
+    nText.placeholder = clMode ? CL_HINT : TEXT_HINT;
+    nText.focus();
+  });
+
   function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b/1024)) + 'KB'; }
 
   // 파일이 이미지인지 판정 — MIME 우선, 없으면 확장자로 (구버전 메모 대비)
@@ -740,6 +760,69 @@ function notesSnippet() {
     addDroppedFiles(imgs.map(namedImage));
   });
 
+  // 체크박스 토글 -> 해당 줄의 [ ]/[x] 마커를 바꿔 PUT (낙관적 반영, 실패 시 원복)
+  function toggleChecklistLine(n, idx, cb, row){
+    var lines = (n.text || '').split('\\n');
+    var m = CL_RE.exec(lines[idx] || '');
+    if(!m){ return; }
+    var done = cb.checked;
+    var prev = n.text;
+    lines[idx] = '[' + (done ? 'x' : ' ') + '] ' + m[2];
+    n.text = lines.join('\\n');
+    row.classList.toggle('done', done);
+    fetch('/api/room/' + ROOM + '/notes', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: n.id, text: n.text })
+    })
+      .then(function(r){
+        if(!r.ok){ throw new Error('HTTP ' + r.status); }
+      })
+      .catch(function(e){
+        n.text = prev;
+        cb.checked = !done;
+        row.classList.toggle('done', !done);
+        flash(msgNotes, '체크 저장 실패: ' + e.message, true);
+      });
+  }
+
+  // 메모 본문 렌더 — '[ ] 항목' 줄은 체크박스 행으로, 나머지 줄은 일반 텍스트로.
+  // 텍스트 부분을 클릭하면 인라인 수정으로 진입한다.
+  function buildNoteBody(card, n){
+    var lines = (n.text || '').split('\\n');
+    var hasCl = lines.some(function(l){ return CL_RE.test(l); });
+    if(!hasCl){
+      var p = document.createElement('p'); p.textContent = n.text;
+      p.className = 'editable'; p.title = '클릭하면 수정할 수 있습니다';
+      p.addEventListener('click', function(){ startEditNote(card, n, p); });
+      return p;
+    }
+    var box = document.createElement('div'); box.className = 'cl';
+    function openEdit(){ startEditNote(card, n, box); }
+    lines.forEach(function(line, idx){
+      var m = CL_RE.exec(line);
+      if(m){
+        var row = document.createElement('div');
+        row.className = 'cl-row' + (m[1] !== ' ' ? ' done' : '');
+        var cb = document.createElement('input'); cb.type = 'checkbox';
+        cb.checked = m[1] !== ' ';
+        cb.addEventListener('change', function(){ toggleChecklistLine(n, idx, cb, row); });
+        var label = document.createElement('span'); label.textContent = m[2];
+        label.title = '클릭하면 수정할 수 있습니다';
+        label.addEventListener('click', openEdit);
+        row.appendChild(cb); row.appendChild(label);
+        box.appendChild(row);
+      } else if(line.trim()){
+        var t = document.createElement('div'); t.className = 'cl-text';
+        t.textContent = line;
+        t.title = '클릭하면 수정할 수 있습니다';
+        t.addEventListener('click', openEdit);
+        box.appendChild(t);
+      }
+    });
+    return box;
+  }
+
   // 메모 본문 클릭 -> 그 자리에서 수정 (수정 저장 시 PUT, 취소 시 원복)
   function startEditNote(card, n, p){
     if(card.querySelector('.note-edit')) return;
@@ -781,12 +864,7 @@ function notesSnippet() {
     items.forEach(function(n){
       var card = document.createElement('div'); card.className = 'note'; card.id = 'note-' + n.id;
       if(n.title){ var h = document.createElement('h3'); h.textContent = n.title; card.appendChild(h); }
-      if(n.text){
-        var p = document.createElement('p'); p.textContent = n.text;
-        p.className = 'editable'; p.title = '클릭하면 수정할 수 있습니다';
-        p.addEventListener('click', function(){ startEditNote(card, n, p); });
-        card.appendChild(p);
-      }
+      if(n.text){ card.appendChild(buildNoteBody(card, n)); }
       if(n.files && n.files.length){
         // 이미지 첨부는 썸네일로, 그 외 파일은 기존 링크 칩으로 표시
         var imgs = document.createElement('div'); imgs.className = 'imgs';
@@ -875,8 +953,14 @@ function notesSnippet() {
     for(var i = 0; i < files.length; i++){
       if(files[i].size > 50 * 1048576){ flash(msgNotes, files[i].name + ' — 50MB를 초과합니다.', true); return; }
     }
+    var textVal = nText.value;
+    if(clMode){
+      textVal = textVal.split('\\n').map(function(l){
+        return (l.trim() && !CL_RE.test(l)) ? '[ ] ' + l : l;
+      }).join('\\n');
+    }
     var fd = new FormData();
-    fd.append('text', nText.value);
+    fd.append('text', textVal);
     files.forEach(function(f){ fd.append('files', f); });
     nSave.disabled = true;
     flash(msgNotes, '저장 중…');
