@@ -219,6 +219,8 @@ textarea.input:focus{border-color:var(--brand)}
 .note{background:var(--surface);border:1.5px solid var(--border);border-radius:0;padding:18px 20px;margin-top:12px}
 .note h3{font-size:15px;font-weight:700}
 .note p{font-size:15px;line-height:1.75;margin-top:6px;white-space:pre-wrap;word-break:break-word}
+.note p.editable{cursor:pointer}
+.note p.editable:hover{background:rgba(70,100,126,.05)}
 .note .files{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
 .note .files a{font-size:15px;color:var(--brand);text-decoration:none;background:#fff;
   border:1.5px solid var(--border);border-radius:0;padding:5px 10px;transition:.15s}
@@ -738,6 +740,38 @@ function notesSnippet() {
     addDroppedFiles(imgs.map(namedImage));
   });
 
+  // 메모 본문 클릭 -> 그 자리에서 수정 (수정 저장 시 PUT, 취소 시 원복)
+  function startEditNote(card, n, p){
+    if(card.querySelector('.note-edit')) return;
+    var wrap = document.createElement('div'); wrap.className = 'note-edit';
+    var ta = document.createElement('textarea'); ta.className = 'input'; ta.value = n.text || '';
+    var row = document.createElement('div'); row.className = 'meta-line';
+    var actions = document.createElement('div'); actions.className = 'actions';
+    var ok = document.createElement('button'); ok.className = 'mini'; ok.textContent = '수정 저장';
+    var cancel = document.createElement('button'); cancel.className = 'mini'; cancel.textContent = '취소';
+    ok.addEventListener('click', function(){
+      var v = ta.value;
+      if(!v.trim() && !(n.files && n.files.length)){ flash(msgNotes, '내용을 입력하세요.', true); return; }
+      ok.disabled = true; cancel.disabled = true;
+      fetch('/api/room/' + ROOM + '/notes', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: n.id, text: v })
+      })
+        .then(function(r){
+          if(r.ok){ flash(msgNotes, '수정됨'); loadNotes(); }
+          else { ok.disabled = false; cancel.disabled = false; flash(msgNotes, '수정 실패 (HTTP ' + r.status + ')', true); }
+        })
+        .catch(function(e){ ok.disabled = false; cancel.disabled = false; flash(msgNotes, '수정 실패: ' + e.message, true); });
+    });
+    cancel.addEventListener('click', function(){ wrap.replaceWith(p); });
+    actions.appendChild(ok); actions.appendChild(cancel);
+    row.appendChild(actions);
+    wrap.appendChild(ta); wrap.appendChild(row);
+    p.replaceWith(wrap);
+    ta.focus();
+  }
+
   function renderNotes(items){
     noteList.innerHTML = '';
     if(!items.length){
@@ -747,7 +781,12 @@ function notesSnippet() {
     items.forEach(function(n){
       var card = document.createElement('div'); card.className = 'note'; card.id = 'note-' + n.id;
       if(n.title){ var h = document.createElement('h3'); h.textContent = n.title; card.appendChild(h); }
-      if(n.text){ var p = document.createElement('p'); p.textContent = n.text; card.appendChild(p); }
+      if(n.text){
+        var p = document.createElement('p'); p.textContent = n.text;
+        p.className = 'editable'; p.title = '클릭하면 수정할 수 있습니다';
+        p.addEventListener('click', function(){ startEditNote(card, n, p); });
+        card.appendChild(p);
+      }
       if(n.files && n.files.length){
         // 이미지 첨부는 썸네일로, 그 외 파일은 기존 링크 칩으로 표시
         var imgs = document.createElement('div'); imgs.className = 'imgs';
@@ -770,7 +809,7 @@ function notesSnippet() {
         if(fw.childNodes.length) card.appendChild(fw);
       }
       var m = document.createElement('div'); m.className = 'meta-line';
-      var s = document.createElement('span'); s.textContent = n.createdAt; m.appendChild(s);
+      var s = document.createElement('span'); s.textContent = n.createdAt + (n.editedAt ? ' · 수정 ' + n.editedAt : ''); m.appendChild(s);
       var actions = document.createElement('div'); actions.className = 'actions';
 
       // 공유 링크는 쿼리 방식(?note=) — #해시는 메신저 인앱 브라우저·현관 게이트에서 유실될 수 있음
