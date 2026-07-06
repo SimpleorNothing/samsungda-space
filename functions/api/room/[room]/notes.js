@@ -1,4 +1,4 @@
-// /api/room/:room/notes — GET 목록, POST 작성(메모+파일 멀티파트), DELETE ?id= 삭제
+// /api/room/:room/notes — GET 목록, POST 작성(메모+파일 멀티파트), PUT 수정(JSON), DELETE ?id= 삭제
 // 비밀번호 설정된 방은 인증 쿠키 또는 x-room-password 헤더 필요.
 import { isValidRoomId, roomExists, readIndex, writeIndex, isAuthorized, json } from '../../../_lib.js';
 
@@ -94,6 +94,44 @@ export async function onRequestPost(context) {
   await writeIndex(context.env, index);
 
   return json({ ok: true, item: item });
+}
+
+// 메모 본문 수정: JSON { id, text } — 파일은 유지, editedAt 기록
+export async function onRequestPut(context) {
+  const g = await guard(context);
+  if (g.fail) return g.fail;
+  const room = g.room;
+  const index = g.index;
+
+  let patch;
+  try { patch = await context.request.json(); } catch (e) {
+    return json({ error: 'invalid json' }, 400);
+  }
+  const id = (patch.id || '').toString();
+  if (!id) return json({ error: 'id required' }, 400);
+
+  const data = await readNotes(context.env, room);
+  const items = data.items || [];
+  const target = items.find(function (n) { return n.id === id; });
+  if (!target) return json({ error: 'not found' }, 404);
+
+  const text = (patch.text !== undefined ? patch.text : (target.text || '')).toString().slice(0, MAX_TEXT_CHARS);
+  if (patch.title !== undefined) {
+    target.title = patch.title.toString().trim().slice(0, MAX_TITLE_CHARS);
+  }
+  // 결과가 빈 메모(본문·파일 모두 없음)가 되면 거부
+  if (!text.trim() && (target.files || []).length === 0) {
+    return json({ error: 'empty note' }, 400);
+  }
+  target.text = text;
+  target.editedAt = nowKST();
+  await writeNotes(context.env, room, data);
+
+  if (!index.rooms[room]) index.rooms[room] = {};
+  index.rooms[room].updatedAt = nowKST();
+  await writeIndex(context.env, index);
+
+  return json({ ok: true, item: target });
 }
 
 export async function onRequestDelete(context) {
