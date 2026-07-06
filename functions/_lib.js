@@ -340,6 +340,11 @@ export function roomPage(room, meta, authorized, hasPage) {
     bodyHtml = `
       <div class="panel" id="setPanel" style="display:none">
         <h2>방 설정</h2>
+        ${editor ? '' : `
+        <div class="field">
+          <label for="setName">방 이름 <span class="hint">(주소에 사용 — 변경하면 주소도 바뀜 · 영문·숫자·하이픈(-)·언더스코어(_), 최대 40자)</span></label>
+          <input id="setName" type="text" maxlength="40" value="${escapeHtml(room)}">
+        </div>`}
         <div class="field">
           <label for="setTitle">방 제목 <span class="hint">(방 목록에 표시 — 비우면 제목 없음)</span></label>
           <input id="setTitle" type="text" maxlength="100" value="${titleVal}">
@@ -1210,6 +1215,7 @@ function settingsSnippet(priv, exp, color) {
   var msgSet = document.getElementById('msgSet');
   var setPw = document.getElementById('setPw');
   var setTitle = document.getElementById('setTitle');
+  var setName = document.getElementById('setName');
   var setExp = document.getElementById('setExp');
   var setExpField = document.getElementById('setExpField');
   var expBtns = document.querySelectorAll('#expSel button');
@@ -1267,6 +1273,17 @@ function settingsSnippet(priv, exp, color) {
       flash(msgSet, '비공개로 바꾸려면 비밀번호를 입력하세요.', true);
       return;
     }
+    // 방 이름(주소) 변경 — 설정 저장 뒤 PATCH /api/rooms 로 처리
+    var newName = setName ? setName.value.trim() : '';
+    var wantRename = !!(setName && newName && newName !== ROOM);
+    if(setName && !newName){
+      flash(msgSet, '방 이름은 비울 수 없어요.', true);
+      return;
+    }
+    if(wantRename && !/^[A-Za-z0-9_-]{1,40}$/.test(newName)){
+      flash(msgSet, '방 이름에는 영문·숫자·하이픈(-)·언더스코어(_)만 쓸 수 있어요. (공백·한글·특수문자 불가)', true);
+      return;
+    }
     var expiresAt = null;
     if(expMode === 'pick'){
       if(!setExp.value){ flash(msgSet, '달력에서 날짜를 선택하세요.', true); return; }
@@ -1280,8 +1297,24 @@ function settingsSnippet(priv, exp, color) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ visibility: vis, password: setPw.value, title: setTitle.value, expiresAt: expiresAt, color: colorSel || null })
     }).then(function(r){
-      if(r.ok){ location.reload(); return; }
-      flash(msgSet, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '저장 실패 (HTTP ' + r.status + ')', true);
+      if(!r.ok){
+        flash(msgSet, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '저장 실패 (HTTP ' + r.status + ')', true);
+        return;
+      }
+      if(!wantRename){ location.reload(); return; }
+      // 데이터·메타를 새 이름으로 옮기고 주소도 함께 바뀐다 (비공개 방은 새 인증 쿠키를 응답으로 받음)
+      flash(msgSet, '방 이름 변경 중…');
+      return fetch('/api/rooms', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: ROOM, newId: newName })
+      }).then(function(r2){
+        if(r2.ok){ location.href = '/' + encodeURIComponent(newName); return; }
+        var t = r2.status === 409 ? '이미 같은 이름의 방이 있어요.'
+          : r2.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.'
+          : '사용할 수 없는 이름이거나 이름을 바꿀 수 없는 방이에요.';
+        flash(msgSet, '설정은 저장했지만 이름 변경에 실패했어요 — ' + t, true);
+      });
     }).catch(function(e){ flash(msgSet, '저장 실패: ' + e.message, true); });
   });`;
 }
