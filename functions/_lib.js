@@ -174,6 +174,8 @@ section{margin-bottom:40px}
 .dropzone:hover{border-color:var(--brand)}
 .dropzone.is-over{border-color:var(--brand);background:rgba(70,100,126,.06)}
 .fmt-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.fmt-row button{background:transparent;border-color:transparent}
+.fmt-row button:hover{border-color:var(--border)}
 .opt{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:15px;color:var(--muted)}
 .opt input{accent-color:var(--brand)}
 .field{margin-top:14px}
@@ -205,6 +207,7 @@ textarea.input{width:100%;min-height:110px;margin-top:14px;font-family:inherit;f
   color:var(--text);background:var(--bg);border:1.5px solid var(--border);border-radius:0;
   padding:14px 16px;outline:none;resize:vertical;}
 textarea.input:focus{border-color:var(--brand)}
+#nText{min-height:220px;background:#fff}
 .preview-label{font-size:15px;font-weight:600;color:var(--muted);margin-top:16px}
 .preview{background:#fff;border:1.5px solid var(--border);border-radius:0;padding:22px;margin-top:8px;
   min-height:100px;overflow:auto;}
@@ -229,7 +232,7 @@ textarea.input:focus{border-color:var(--brand)}
 .note .cl-row span{white-space:pre-wrap;word-break:break-word;cursor:pointer}
 .note .cl-row.done span{color:var(--muted);text-decoration:line-through}
 .note .cl-text{font-size:15px;line-height:1.75;white-space:pre-wrap;word-break:break-word;cursor:pointer}
-.fmt-row button.active{border-color:var(--brand);color:var(--brand);background:rgba(70,100,126,.06)}
+.fmt-row button.active{border-color:#E7EAE6;color:var(--text);background:#E7EAE6}
 .note .files{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
 .note .files a{font-size:15px;color:var(--brand);text-decoration:none;background:#fff;
   border:1.5px solid var(--border);border-radius:0;padding:5px 10px;transition:.15s}
