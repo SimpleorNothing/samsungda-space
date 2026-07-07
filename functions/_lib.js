@@ -221,7 +221,8 @@ textarea.input:focus{border-color:var(--brand)}
 .note p{font-size:15px;line-height:1.75;margin-top:6px;white-space:pre-wrap;word-break:break-word}
 .note p.editable{cursor:pointer}
 .note p.editable:hover{background:rgba(70,100,126,.05)}
-.note .cl{margin-top:6px}
+.note .cl{margin-top:6px;cursor:pointer}
+.note .cl:hover{background:rgba(70,100,126,.04)}
 .note .cl-row{display:flex;align-items:flex-start;gap:8px;padding:3px 0;font-size:15px;line-height:1.6}
 .note .cl-row input{width:16px;height:16px;margin-top:3px;accent-color:var(--brand);cursor:pointer;flex:none}
 .note .cl-row span{white-space:pre-wrap;word-break:break-word;cursor:pointer}
@@ -788,7 +789,8 @@ function notesSnippet() {
   }
 
   // 메모 본문 렌더 — '[ ] 항목' 줄은 체크박스 행으로, 나머지 줄은 일반 텍스트로.
-  // 텍스트 부분을 클릭하면 인라인 수정으로 진입한다.
+  // 체크박스 영역(div.cl) 전체를 클릭하면 인라인 수정으로 진입한다.
+  // 단, 체크박스(input[type=checkbox]) 클릭은 수정 모드 진입 대신 토글로 처리.
   function buildNoteBody(card, n){
     var lines = (n.text || '').replace(/\\r\\n/g, '\\n').split('\\n');
     var hasCl = lines.some(function(l){ return CL_RE.test(l); });
@@ -800,6 +802,8 @@ function notesSnippet() {
     }
     var box = document.createElement('div'); box.className = 'cl';
     function openEdit(){ startEditNote(card, n, box); }
+    box.title = '클릭하면 수정할 수 있습니다';
+    box.addEventListener('click', function(e){ if(e.target.type === 'checkbox') return; openEdit(); });
     lines.forEach(function(line, idx){
       var m = CL_RE.exec(line);
       if(m){
@@ -809,15 +813,11 @@ function notesSnippet() {
         cb.checked = /x/i.test(m[1] || '');
         cb.addEventListener('change', function(){ toggleChecklistLine(n, idx, cb, row); });
         var label = document.createElement('span'); label.textContent = m[2];
-        label.title = '클릭하면 수정할 수 있습니다';
-        label.addEventListener('click', openEdit);
         row.appendChild(cb); row.appendChild(label);
         box.appendChild(row);
       } else if(line.trim()){
         var t = document.createElement('div'); t.className = 'cl-text';
         t.textContent = line;
-        t.title = '클릭하면 수정할 수 있습니다';
-        t.addEventListener('click', openEdit);
         box.appendChild(t);
       }
     });
