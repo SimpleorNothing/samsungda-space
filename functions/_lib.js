@@ -228,7 +228,10 @@ textarea.input:focus{border-color:var(--brand)}
 .note .cl-row span{white-space:pre-wrap;word-break:break-word;cursor:pointer}
 .note .cl-row.done span{color:var(--muted);text-decoration:line-through}
 .note .cl-text{font-size:15px;line-height:1.75;white-space:pre-wrap;word-break:break-word;cursor:pointer}
-#nCheck.active{border-color:var(--brand);color:var(--brand);background:rgba(70,100,126,.06)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.fmt-group{display:flex;gap:6px}
+.fmt-group button{padding:6px 12px}
+.fmt-group button.active{border-color:var(--brand);color:var(--brand);background:rgba(70,100,126,.06)}
 .note .files{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
 .note .files a{font-size:15px;color:var(--brand);text-decoration:none;background:#fff;
   border:1.5px solid var(--border);border-radius:0;padding:5px 10px;transition:.15s}
@@ -400,12 +403,19 @@ export function roomPage(room, meta, authorized, hasPage) {
 
       <div class="tabpanel${defaultTab === 'notes' ? ' active' : ''}" id="tab-notes">
         <div class="panel">
-          <h2>메모·파일 저장</h2>
+          <div class="panel-head">
+            <h2>메모·파일 저장</h2>
+            <div class="fmt-group">
+              <button id="nCheck" type="button" title="한 줄에 한 항목씩 — 저장 시 체크박스 목록으로 변환">☑ 체크리스트</button>
+              <button id="nBullet" type="button" title="한 줄에 한 항목씩 — 저장 시 불릿(•) 목록으로 변환">• 불릿</button>
+              <button id="nNum" type="button" title="한 줄에 한 항목씩 — 저장 시 번호 목록으로 변환">1. 번호</button>
+            </div>
+          </div>
           <textarea id="nText" class="input" placeholder="내용을 입력하세요"></textarea>
           <div class="dropzone" id="nDrop">이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기</div>
           <input id="nFiles" type="file" multiple hidden>
           <div class="previews" id="nPreview"></div>
-          <div class="btn-row btn-row-end"><button id="nCheck" type="button" title="한 줄에 한 항목씩 — 저장 시 체크박스 목록으로 변환">☑ 체크리스트</button><button id="nSave" class="primary">저장</button></div>
+          <div class="btn-row btn-row-end"><button id="nSave" class="primary">저장</button></div>
           <div class="status-msg" id="msgNotes"></div>
         </div>
         <div id="noteList"></div>
@@ -598,14 +608,24 @@ function notesSnippet() {
   // \\r? : 모바일(CRLF) 줄바꿈으로 저장된 경우 \\r이 줄 끝에 남아 $ 앵커 실패하는 것 방지
   var CL_RE = /^\\s*[\\[［](\\s|x|X)?[\\]］]\\s*(.*?)\\r?$/;
   var TEXT_HINT = '내용을 입력하세요';
-  var CL_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환)';
-  var clMode = false;
-  var nCheck = document.getElementById('nCheck');
-  nCheck.addEventListener('click', function(){
-    clMode = !clMode;
-    nCheck.className = clMode ? 'active' : '';
-    nText.placeholder = clMode ? CL_HINT : TEXT_HINT;
-    nText.focus();
+  var FMT_HINT = {
+    cl: '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환)',
+    bullet: '한 줄에 한 항목씩 입력하세요 (저장 시 • 불릿 목록으로 변환)',
+    num: '한 줄에 한 항목씩 입력하세요 (저장 시 1. 2. 3. 번호 목록으로 변환)'
+  };
+  var fmtMode = '';
+  var fmtBtns = {
+    cl: document.getElementById('nCheck'),
+    bullet: document.getElementById('nBullet'),
+    num: document.getElementById('nNum')
+  };
+  Object.keys(fmtBtns).forEach(function(k){
+    fmtBtns[k].addEventListener('click', function(){
+      fmtMode = (fmtMode === k) ? '' : k;
+      Object.keys(fmtBtns).forEach(function(j){ fmtBtns[j].className = (fmtMode === j) ? 'active' : ''; });
+      nText.placeholder = fmtMode ? FMT_HINT[fmtMode] : TEXT_HINT;
+      nText.focus();
+    });
   });
 
   function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b/1024)) + 'KB'; }
@@ -956,9 +976,20 @@ function notesSnippet() {
       if(files[i].size > 50 * 1048576){ flash(msgNotes, files[i].name + ' — 50MB를 초과합니다.', true); return; }
     }
     var textVal = nText.value;
-    if(clMode){
+    if(fmtMode === 'cl'){
       textVal = textVal.split('\\n').map(function(l){
         return (l.trim() && !CL_RE.test(l)) ? '[ ] ' + l : l;
+      }).join('\\n');
+    } else if(fmtMode === 'bullet'){
+      textVal = textVal.split('\\n').map(function(l){
+        return (l.trim() && !/^\\s*[•\\-*]\\s/.test(l)) ? '• ' + l : l;
+      }).join('\\n');
+    } else if(fmtMode === 'num'){
+      var lineNo = 0;
+      textVal = textVal.split('\\n').map(function(l){
+        if(!l.trim()) return l;
+        lineNo++;
+        return /^\\s*\\d+[.)]\\s/.test(l) ? l : lineNo + '. ' + l;
       }).join('\\n');
     }
     var fd = new FormData();
@@ -1507,5 +1538,4 @@ function lockedScript(room) {
   }
   enterBtn.addEventListener('click', enter);
   pw.addEventListener('keydown', function(e){ if(e.key === 'Enter') enter(); });
-})();`;
-}
+})();
