@@ -594,7 +594,8 @@ function notesSnippet() {
   var DROP_HINT = '이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기';
 
   // 체크리스트 문법: '[ ] 항목' / '[x] 항목' — 저장된 메모에서 체크박스로 렌더·토글
-  var CL_RE = /^\\s*[\\[［](\\s|x|X)?[\\]］]\\s*(.*)$/;
+  // 안쪽·바깥 공백은 일반 공백뿐 아니라 NBSP·전각공백·제로폭 문자까지 허용(붙여넣기 대비).
+  var CL_RE = /^[\\s\\u200b\\u200c\\u200d\\u2060\\ufeff]*[\\[\\uff3b]([\\s\\u200b\\u200c\\u200d\\u2060\\ufeffxXvVoO\\u2713\\u2714]{0,3})[\\]\\uff3d][\\s\\u200b\\u200c\\u200d\\u2060\\ufeff]*(.*)$/;
   var TEXT_HINT = '내용을 입력하세요';
   var CL_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환)';
   var clMode = false;
@@ -803,9 +804,9 @@ function notesSnippet() {
       var m = CL_RE.exec(line);
       if(m){
         var row = document.createElement('div');
-        row.className = 'cl-row' + (/x/i.test(m[1] || '') ? ' done' : '');
+        row.className = 'cl-row' + (/[xv\\u2713\\u2714]/i.test(m[1] || '') ? ' done' : '');
         var cb = document.createElement('input'); cb.type = 'checkbox';
-        cb.checked = /x/i.test(m[1] || '');
+        cb.checked = /[xv\\u2713\\u2714]/i.test(m[1] || '');
         cb.addEventListener('change', function(){ toggleChecklistLine(n, idx, cb, row); });
         var label = document.createElement('span'); label.textContent = m[2];
         label.title = '클릭하면 수정할 수 있습니다';
