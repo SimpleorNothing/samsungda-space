@@ -624,7 +624,46 @@ function notesSnippet() {
       return (l.trim() && !CL_RE.test(l)) ? '[ ] ' + l : l;
     }).join('\\n');
   }
-
+  function attachUndoRedo(ta, onChange){
+    var undo = [ta.value];
+    var redo = [];
+    var restoring = false;
+    function commit(){
+      if(restoring) return;
+      var v = ta.value;
+      if(undo[undo.length - 1] !== v){
+        undo.push(v);
+        if(undo.length > 100) undo.shift();
+        redo = [];
+      }
+    }
+    function restore(v){
+      restoring = true;
+      ta.value = v;
+      ta.selectionStart = ta.selectionEnd = ta.value.length;
+      restoring = false;
+      if(onChange) onChange();
+    }
+    ta.addEventListener('input', commit);
+    ta.addEventListener('keydown', function(e){
+      var mod = e.ctrlKey || e.metaKey;
+      if(!mod) return;
+      var k = (e.key || '').toLowerCase();
+      if(k === 'z' && !e.shiftKey){
+        if(undo.length <= 1) return;
+        e.preventDefault();
+        redo.push(undo.pop());
+        restore(undo[undo.length - 1]);
+      } else if(k === 'y' || (k === 'z' && e.shiftKey)){
+        if(!redo.length) return;
+        e.preventDefault();
+        var v = redo.pop();
+        undo.push(v);
+        restore(v);
+      }
+    });
+    return { commit: commit };
+  }
   function setFmtMode(mode){
     fmtMode = (fmtMode === mode) ? 'none' : mode;
     fmtBtns.forEach(function(b){ b.className = ''; });
@@ -864,6 +903,7 @@ function notesSnippet() {
     ta.style.overflowY = 'hidden';
     function fitTa(){ ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 4) + 'px'; }
     ta.addEventListener('input', fitTa);
+    var editHistory = attachUndoRedo(ta, fitTa);
     ta.addEventListener('keydown', function(e){
       if(e.key !== 'Enter' || !hasChecklistText(n.text || ta.value)) return;
       e.preventDefault();
@@ -872,6 +912,7 @@ function notesSnippet() {
       var insert = '\\n[ ] ';
       ta.value = ta.value.slice(0, start) + insert + ta.value.slice(end);
       ta.selectionStart = ta.selectionEnd = start + insert.length;
+      editHistory.commit();
       fitTa();
     });
     var row = document.createElement('div'); row.className = 'meta-line';
