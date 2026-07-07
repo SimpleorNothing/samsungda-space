@@ -173,6 +173,7 @@ section{margin-bottom:40px}
   font-size:15px;color:var(--muted);margin-top:16px;transition:.15s;cursor:pointer;}
 .dropzone:hover{border-color:var(--brand)}
 .dropzone.is-over{border-color:var(--brand);background:rgba(70,100,126,.06)}
+.fmt-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .opt{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:15px;color:var(--muted)}
 .opt input{accent-color:var(--brand)}
 .field{margin-top:14px}
@@ -228,7 +229,7 @@ textarea.input:focus{border-color:var(--brand)}
 .note .cl-row span{white-space:pre-wrap;word-break:break-word;cursor:pointer}
 .note .cl-row.done span{color:var(--muted);text-decoration:line-through}
 .note .cl-text{font-size:15px;line-height:1.75;white-space:pre-wrap;word-break:break-word;cursor:pointer}
-#nCheck.active{border-color:var(--brand);color:var(--brand);background:rgba(70,100,126,.06)}
+.fmt-row button.active{border-color:var(--brand);color:var(--brand);background:rgba(70,100,126,.06)}
 .note .files{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
 .note .files a{font-size:15px;color:var(--brand);text-decoration:none;background:#fff;
   border:1.5px solid var(--border);border-radius:0;padding:5px 10px;transition:.15s}
@@ -401,11 +402,16 @@ export function roomPage(room, meta, authorized, hasPage) {
       <div class="tabpanel${defaultTab === 'notes' ? ' active' : ''}" id="tab-notes">
         <div class="panel">
           <h2>메모·파일 저장</h2>
+          <div class="fmt-row" id="fmtRow">
+            <button id="nCheck" type="button" title="한 줄에 한 항목씩 — 저장 시 체크박스 목록으로 변환">☑ 체크리스트</button>
+            <button id="nBullet" type="button" title="한 줄에 한 항목씩 — 저장 시 글머리 기호 목록으로 변환">• 글머리 기호</button>
+            <button id="nNumber" type="button" title="한 줄에 한 항목씩 — 저장 시 번호 매기기 목록으로 변환">1. 번호 매기기</button>
+          </div>
           <textarea id="nText" class="input" placeholder="내용을 입력하세요"></textarea>
           <div class="dropzone" id="nDrop">이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기</div>
           <input id="nFiles" type="file" multiple hidden>
           <div class="previews" id="nPreview"></div>
-          <div class="btn-row btn-row-end"><button id="nCheck" type="button" title="한 줄에 한 항목씩 — 저장 시 체크박스 목록으로 변환">☑ 체크리스트</button><button id="nSave" class="primary">저장</button></div>
+          <div class="btn-row btn-row-end"><button id="nSave" class="primary">저장</button></div>
           <div class="status-msg" id="msgNotes"></div>
         </div>
         <div id="noteList"></div>
@@ -599,14 +605,27 @@ function notesSnippet() {
   var CL_RE = /^\\s*[\\[［](\\s|x|X)?[\\]］]\\s*(.*?)\\r?$/;
   var TEXT_HINT = '내용을 입력하세요';
   var CL_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환)';
-  var clMode = false;
+  var BULLET_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 글머리 기호 목록으로 변환)';
+  var NUMBER_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 번호 매기기 목록으로 변환)';
+  // 서식 모드: 'none' | 'checklist' | 'bullet' | 'number' — 세 버튼은 하나만 켜진다(라디오처럼 동작)
+  var fmtMode = 'none';
   var nCheck = document.getElementById('nCheck');
-  nCheck.addEventListener('click', function(){
-    clMode = !clMode;
-    nCheck.className = clMode ? 'active' : '';
-    nText.placeholder = clMode ? CL_HINT : TEXT_HINT;
+  var nBullet = document.getElementById('nBullet');
+  var nNumber = document.getElementById('nNumber');
+  var fmtBtns = [nCheck, nBullet, nNumber];
+
+  function setFmtMode(mode){
+    fmtMode = (fmtMode === mode) ? 'none' : mode;
+    fmtBtns.forEach(function(b){ b.className = ''; });
+    if(fmtMode === 'checklist'){ nCheck.className = 'active'; nText.placeholder = CL_HINT; }
+    else if(fmtMode === 'bullet'){ nBullet.className = 'active'; nText.placeholder = BULLET_HINT; }
+    else if(fmtMode === 'number'){ nNumber.className = 'active'; nText.placeholder = NUMBER_HINT; }
+    else { nText.placeholder = TEXT_HINT; }
     nText.focus();
-  });
+  }
+  nCheck.addEventListener('click', function(){ setFmtMode('checklist'); });
+  nBullet.addEventListener('click', function(){ setFmtMode('bullet'); });
+  nNumber.addEventListener('click', function(){ setFmtMode('number'); });
 
   function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b/1024)) + 'KB'; }
 
@@ -956,9 +975,20 @@ function notesSnippet() {
       if(files[i].size > 50 * 1048576){ flash(msgNotes, files[i].name + ' — 50MB를 초과합니다.', true); return; }
     }
     var textVal = nText.value;
-    if(clMode){
+    if(fmtMode === 'checklist'){
       textVal = textVal.split('\\n').map(function(l){
         return (l.trim() && !CL_RE.test(l)) ? '[ ] ' + l : l;
+      }).join('\\n');
+    } else if(fmtMode === 'bullet'){
+      textVal = textVal.split('\\n').map(function(l){
+        return l.trim() ? '• ' + l.trim() : l;
+      }).join('\\n');
+    } else if(fmtMode === 'number'){
+      var seq = 0;
+      textVal = textVal.split('\\n').map(function(l){
+        if(!l.trim()) return l;
+        seq++;
+        return seq + '. ' + l.trim();
       }).join('\\n');
     }
     var fd = new FormData();
