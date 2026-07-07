@@ -616,6 +616,15 @@ function notesSnippet() {
   var nNumber = document.getElementById('nNumber');
   var fmtBtns = [nCheck, nBullet, nNumber];
 
+  function hasChecklistText(text){
+    return (text || '').replace(/\\r\\n/g, '\\n').split('\\n').some(function(l){ return CL_RE.test(l); });
+  }
+  function addChecklistMarkers(text){
+    return (text || '').replace(/\\r\\n/g, '\\n').split('\\n').map(function(l){
+      return (l.trim() && !CL_RE.test(l)) ? '[ ] ' + l : l;
+    }).join('\\n');
+  }
+
   function setFmtMode(mode){
     fmtMode = (fmtMode === mode) ? 'none' : mode;
     fmtBtns.forEach(function(b){ b.className = ''; });
@@ -855,12 +864,23 @@ function notesSnippet() {
     ta.style.overflowY = 'hidden';
     function fitTa(){ ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 4) + 'px'; }
     ta.addEventListener('input', fitTa);
+    ta.addEventListener('keydown', function(e){
+      if(e.key !== 'Enter' || !hasChecklistText(n.text || ta.value)) return;
+      e.preventDefault();
+      var start = ta.selectionStart;
+      var end = ta.selectionEnd;
+      var insert = '\\n[ ] ';
+      ta.value = ta.value.slice(0, start) + insert + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + insert.length;
+      fitTa();
+    });
     var row = document.createElement('div'); row.className = 'meta-line';
     var actions = document.createElement('div'); actions.className = 'actions';
     var ok = document.createElement('button'); ok.className = 'mini'; ok.textContent = '수정 저장';
     var cancel = document.createElement('button'); cancel.className = 'mini'; cancel.textContent = '취소';
     ok.addEventListener('click', function(){
       var v = ta.value;
+      if(hasChecklistText(n.text || v)) v = addChecklistMarkers(v);
       if(!v.trim() && !(n.files && n.files.length)){ flash(msgNotes, '내용을 입력하세요.', true); return; }
       ok.disabled = true; cancel.disabled = true;
       fetch('/api/room/' + ROOM + '/notes', {
@@ -983,9 +1003,7 @@ function notesSnippet() {
     }
     var textVal = nText.value;
     if(fmtMode === 'checklist'){
-      textVal = textVal.split('\\n').map(function(l){
-        return (l.trim() && !CL_RE.test(l)) ? '[ ] ' + l : l;
-      }).join('\\n');
+      textVal = addChecklistMarkers(textVal);
     } else if(fmtMode === 'bullet'){
       textVal = textVal.split('\\n').map(function(l){
         return l.trim() ? '• ' + l.trim() : l;
