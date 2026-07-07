@@ -851,6 +851,10 @@ function notesSnippet() {
     if(card.querySelector('.note-edit')) return;
     var wrap = document.createElement('div'); wrap.className = 'note-edit';
     var ta = document.createElement('textarea'); ta.className = 'input'; ta.value = n.text || '';
+    // 수정창은 스크롤 없이 입력된 텍스트 전체가 보이도록 내용 높이에 맞춰 자동 확장
+    ta.style.overflowY = 'hidden';
+    function fitTa(){ ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 4) + 'px'; }
+    ta.addEventListener('input', fitTa);
     var row = document.createElement('div'); row.className = 'meta-line';
     var actions = document.createElement('div'); actions.className = 'actions';
     var ok = document.createElement('button'); ok.className = 'mini'; ok.textContent = '수정 저장';
@@ -875,6 +879,7 @@ function notesSnippet() {
     row.appendChild(actions);
     wrap.appendChild(ta); wrap.appendChild(row);
     p.replaceWith(wrap);
+    fitTa();          // DOM 삽입 후에야 scrollHeight가 잡히므로 여기서 1회 실행
     ta.focus();
   }
 
