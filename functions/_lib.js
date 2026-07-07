@@ -174,8 +174,7 @@ section{margin-bottom:40px}
 .dropzone:hover{border-color:var(--brand)}
 .dropzone.is-over{border-color:var(--brand);background:rgba(70,100,126,.06)}
 .fmt-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-.fmt-row button{background:transparent;border-color:transparent}
-.fmt-row button:hover{border-color:var(--border)}
+.fmt-row button{background:transparent;border-color:var(--border)}
 .opt{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:15px;color:var(--muted)}
 .opt input{accent-color:var(--brand)}
 .field{margin-top:14px}
@@ -606,7 +605,7 @@ function notesSnippet() {
   // 체크리스트 문법: '[ ] 항목' / '[x] 항목' — 저장된 메모에서 체크박스로 렌더·토글
   // \\r? : 모바일(CRLF) 줄바꿈으로 저장된 경우 \\r이 줄 끝에 남아 $ 앵커 실패하는 것 방지
   var CL_RE = /^\\s*[\\[［](\\s|x|X)?[\\]］]\\s*(.*?)\\r?$/;
-  var TEXT_HINT = '내용을 입력하세요';
+  var TEXT_HINT = '내용을 입력하세요 (위 체크리스트·글머리 기호·번호 매기기 버튼으로 목록 형식을 선택할 수 있어요)';
   var CL_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환)';
   var BULLET_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 글머리 기호 목록으로 변환)';
   var NUMBER_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 번호 매기기 목록으로 변환)';
