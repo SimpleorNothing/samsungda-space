@@ -594,7 +594,8 @@ function notesSnippet() {
   var DROP_HINT = '이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기';
 
   // 체크리스트 문법: '[ ] 항목' / '[x] 항목' — 저장된 메모에서 체크박스로 렌더·토글
-  var CL_RE = /^\\s*[\\[［](\\s|x|X)?[\\]］]\\s*(.*)$/;
+  // \\r? : 모바일(CRLF) 줄바꿈으로 저장된 경우 \\r이 줄 끝에 남아 $ 앵커 실패하는 것 방지
+  var CL_RE = /^\\s*[\\[［](\\s|x|X)?[\\]］]\\s*(.*?)\\r?$/;
   var TEXT_HINT = '내용을 입력하세요';
   var CL_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환)';
   var clMode = false;
@@ -762,7 +763,7 @@ function notesSnippet() {
 
   // 체크박스 토글 -> 해당 줄의 [ ]/[x] 마커를 바꿔 PUT (낙관적 반영, 실패 시 원복)
   function toggleChecklistLine(n, idx, cb, row){
-    var lines = (n.text || '').split('\\n');
+    var lines = (n.text || '').replace(/\\r\\n/g, '\\n').split('\\n');
     var m = CL_RE.exec(lines[idx] || '');
     if(!m){ return; }
     var done = cb.checked;
@@ -789,7 +790,7 @@ function notesSnippet() {
   // 메모 본문 렌더 — '[ ] 항목' 줄은 체크박스 행으로, 나머지 줄은 일반 텍스트로.
   // 텍스트 부분을 클릭하면 인라인 수정으로 진입한다.
   function buildNoteBody(card, n){
-    var lines = (n.text || '').split('\\n');
+    var lines = (n.text || '').replace(/\\r\\n/g, '\\n').split('\\n');
     var hasCl = lines.some(function(l){ return CL_RE.test(l); });
     if(!hasCl){
       var p = document.createElement('p'); p.textContent = n.text;
