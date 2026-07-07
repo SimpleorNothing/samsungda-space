@@ -409,7 +409,7 @@ export function roomPage(room, meta, authorized, hasPage) {
             <button id="nBullet" type="button" title="한 줄에 한 항목씩 — 저장 시 글머리 기호 목록으로 변환">• 글머리 기호</button>
             <button id="nNumber" type="button" title="한 줄에 한 항목씩 — 저장 시 번호 매기기 목록으로 변환">1. 번호 매기기</button>
           </div>
-          <textarea id="nText" class="input" placeholder="내용을 입력하세요"></textarea>
+          <textarea id="nText" class="input" placeholder="내용을 입력하세요 (위 체크리스트·글머리 기호·번호 매기기 버튼으로 목록 형식을 선택할 수 있어요)"></textarea>
           <div class="dropzone" id="nDrop">이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기</div>
           <input id="nFiles" type="file" multiple hidden>
           <div class="previews" id="nPreview"></div>
