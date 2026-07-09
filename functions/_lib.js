@@ -593,6 +593,7 @@ function webTabMarkup(room, used, editor) {
         <button id="dlBtn">HTML 다운로드</button>
         <button id="fileRepBtn">파일로 교체</button>
         <button id="srcRepBtn">소스로 교체</button>
+        <button id="renameBtn">탭 이름 변경</button>
         <button class="danger" id="deleteBtn">삭제</button>
       </div>
       <input id="repFile" type="file" accept=".html,.htm,text/html" hidden>
@@ -1513,6 +1514,22 @@ function webSnippet(room, meta, editor, used) {
       if(r.ok){ location.reload(); return; }
       flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '교체 실패 (HTTP ' + r.status + ')', true);
     }).catch(function(e){ flash(msgWeb, '교체 실패: ' + e.message, true); });
+  });
+
+  document.getElementById('renameBtn').addEventListener('click', function(){
+    var p = curPage();
+    if(!p){ flash(msgWeb, '현재 페이지를 찾을 수 없습니다.', true); return; }
+    var newName = window.prompt('탭 이름 (비우면 기본값으로 초기화)', p.title || '');
+    if(newName === null) return;
+    flash(msgWeb, '탭 이름 변경 중…');
+    fetch('/api/room/' + ROOM + '/pages?id=' + encodeURIComponent(cur), {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: newName })
+    }).then(function(r){
+      if(r.ok){ p.title = newName; renderBar(); flash(msgWeb, ''); return; }
+      flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '변경 실패 (HTTP ' + r.status + ')', true);
+    }).catch(function(e){ flash(msgWeb, '변경 실패: ' + e.message, true); });
   });
 
   // ---- 새 페이지 게시 폼 (드래프트 탭 공용) ----
