@@ -68,13 +68,14 @@ export async function onRequestGet(context) {
     const meta = index.rooms[id] || null;
     const published = !!pageHeads[i];
     const hasNotes = !!heads[i];
+    const used = published || hasNotes;
     const expiresAt = (meta && meta.expiresAt) || null;
     return {
       id: id,
-      used: published || hasNotes,
+      used: used,
       published: published,
       title: published && meta ? (meta.title || '') : '',
-      updated: published && meta ? String(meta.updatedAt || '').slice(0, 10) : '',
+      updated: used && meta ? String(meta.updatedAt || '').slice(0, 10) : '',
       locked: !!(meta && meta.passwordHash),
       color: (meta && meta.color) || null,
       expiresAt: expiresAt,
