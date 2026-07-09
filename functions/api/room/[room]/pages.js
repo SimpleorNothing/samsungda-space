@@ -139,8 +139,8 @@ export async function onRequestPut(context) {
   if (!body) return json({ error: 'invalid body' }, 400);
 
   const k = keys(g.room, pid);
-  const head = await context.env.SPACE.head(k.html);
-  if (!head) return json({ error: 'not published' }, 404);
+  const obj = await context.env.SPACE.get(k.html);
+  if (!obj) return json({ error: 'not published' }, 404);
 
   const title = String(body.title || '').slice(0, 60);
 
@@ -154,8 +154,8 @@ export async function onRequestPut(context) {
       g.index.rooms[g.room] = meta;
       await writeIndex(context.env, g.index);
     } else {
-      const oldTitle = (head.customMetadata && head.customMetadata.title) || '';
-      await context.env.SPACE.put(k.html, await head.arrayBuffer(), {
+      const oldTitle = (obj.customMetadata && obj.customMetadata.title) || '';
+      await context.env.SPACE.put(k.html, await obj.arrayBuffer(), {
         httpMetadata: { contentType: 'text/html; charset=utf-8' },
         customMetadata: { title: title ? encodeTitle(title) : oldTitle, updatedat: nowKST() },
       });
@@ -180,7 +180,7 @@ export async function onRequestPut(context) {
     await writeIndex(context.env, g.index);
   } else {
     // 제목을 비우면 기존 customMetadata 제목 유지
-    const oldTitle = (head.customMetadata && head.customMetadata.title) || '';
+    const oldTitle = (obj.customMetadata && obj.customMetadata.title) || '';
     await context.env.SPACE.put(k.html, body.html, {
       httpMetadata: { contentType: 'text/html; charset=utf-8' },
       customMetadata: { title: title ? encodeTitle(title) : oldTitle, updatedat: nowKST() },
