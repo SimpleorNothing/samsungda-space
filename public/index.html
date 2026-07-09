@@ -1,1 +1,808 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Space</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --bg:#EDEFEC;
+  --surface:#FFFFFF;
+  --text:#17222D;
+  --muted:#5C6B79;
+  --border:#D3D9D6;
+  --brand:#46647E;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  padding:56px 24px;
+}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:30px;font-weight:800;letter-spacing:-0.5px;line-height:1.2}
+.sub{font-size:15px;color:var(--muted);margin-top:6px}
+h2{font-size:20px;font-weight:700;letter-spacing:-0.3px}
+.desc{font-size:15px;color:var(--muted);margin-top:4px}
+section{margin-bottom:40px}
+.section-head{margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:600px){.grid{grid-template-columns:1fr}}
+
+/* 구분선 — 그리드 전체 폭을 차지하는 가로 구분선. 위/아래로 방을 나눈다.
+   카드처럼 끌어서 위치를 옮길 수 있고, 관리 모드에서는 추가·삭제할 수 있다. */
+.divider{
+  grid-column:1 / -1;
+  display:flex;align-items:center;gap:12px;
+  margin:6px 0;color:var(--muted);font-size:15px;font-weight:600;
+  cursor:grab;min-height:14px;
+}
+.divider:active{cursor:grabbing}
+.divider.dragging{opacity:.45}
+.divider::before,.divider::after{content:"";flex:1;height:0;border-top:2px dashed var(--border)}
+.divider .divrm{
+  font-family:inherit;font-size:13px;font-weight:600;
+  border:1.5px solid var(--border);border-radius:0;background:#fff;color:var(--muted);
+  padding:3px 10px;cursor:pointer;transition:.15s;flex:none;
+}
+.divider .divrm:hover{background:#F5E4E2;color:#B02E24;border-color:#F5E4E2}
+.grid.reorder .divider{color:var(--brand)}
+.grid.reorder .divider::before,.grid.reorder .divider::after{border-top-color:var(--brand)}
+
+/* 정렬 모드 — 카드를 끌어 구분선 위/아래로 옮길 수 있다. */
+.grid.reorder .card{cursor:grab}
+.grid.reorder .card:active{cursor:grabbing}
+.card.dragging{opacity:.45}
+.grid.reorder .divider.drop-on{color:var(--brand)}
+.grid.reorder .divider.drop-on::before,.grid.reorder .divider.drop-on::after{border-top-style:solid}
+.card{
+  display:block;
+  min-width:0;
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  border-radius:0;
+  padding:26px 22px;
+  cursor:pointer;
+  transition:.15s;
+  text-decoration:none;
+  color:inherit;
+}
+.card:hover{border-color:var(--brand);box-shadow:0 4px 18px rgba(70,100,126,.10)}
+.card.tinted{background:color-mix(in srgb, var(--c) 6%, #fff);border-color:color-mix(in srgb, var(--c) 30%, #fff)}
+.card.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
+.card.tinted h3{color:var(--c)}
+.card.tinted .badge.used{background:color-mix(in srgb, var(--c) 10%, #fff);color:var(--c)}
+.card.tinted .updated,.card.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
+.card h3{font-size:17px;font-weight:700;display:flex;align-items:center}
+.card h3 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px;flex:none}
+.card h3::after{content:"→";margin-left:auto;font-size:15px;opacity:.4}
+.card p{font-size:15px;color:var(--muted);line-height:1.65;margin-top:8px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.badge{
+  display:inline-block;font-size:15px;font-weight:600;
+  padding:3px 9px;border-radius:7px;
+}
+.badge.free{background:#E7EAE6;color:var(--muted)}
+.badge.used{background:rgba(70,100,126,.08);color:var(--brand)}
+.badge.open{background:#E7EAE6;color:var(--muted)}
+.badge.lock{background:#F5E4E2;color:#B02E24}
+.badge.exp{background:#E7EAE6;color:var(--muted)}
+.badge.expired{background:#F5E4E2;color:#B02E24}
+.updated{
+  font-size:15px;color:var(--muted);
+  border-top:1px solid var(--border);
+  margin-top:14px;padding-top:10px;
+}
+.mgr{display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.mgr button{
+  font-family:inherit;font-size:15px;font-weight:600;
+  border:1.5px solid var(--border);border-radius:0;background:#fff;color:var(--text);
+  padding:5px 12px;cursor:pointer;transition:.15s;
+}
+.mgr button:hover{background:#F5E4E2;color:#B02E24;border-color:#F5E4E2}
+.card.off{background:#E7EAE6;border-color:#D9DDD7}
+.card.off h3{color:#9AA6A0}
+.card.off h3::after{opacity:.3}
+.card.off p{color:#9AA6A0}
+.card.off .badge.free,
+.card.off .badge.open,
+.card.off .badge.exp{background:#E1E4DF;color:#9AA6A0}
+.card.off .updated,.card.off .mgr{border-color:#D9DDD7}
+.card.off:hover{border-color:#9AA6A0;box-shadow:0 4px 18px rgba(92,107,121,.10)}
+.card.off:hover h3::after{opacity:.55}
+.card.on{
+  background:radial-gradient(120% 90% at 50% 0%,
+    rgba(199,154,46,.35) 0%,
+    rgba(244,237,220,.55) 38%,
+    #FAF6EC 75%);
+  border-color:#F0E4C4;
+  box-shadow:0 4px 22px rgba(169,121,15,.16);
+}
+.card.on h3{color:#6B4D0A}
+.card.on .badge.used{background:#F4E6C7;color:#6B4D0A}
+.card.on .updated{border-color:#F4EAD5}
+.card.on .mgr{border-color:#F4EAD5}
+.card.on:hover{border-color:#C79A2E;box-shadow:0 6px 26px rgba(169,121,15,.24)}
+
+/* 사용중 + 테마색 — 그 방의 색으로 불이 켜짐 (그라데이션 없이 단색 틴트) */
+.card.on.tinted{
+  background:color-mix(in srgb, var(--c) 12%, #fff);
+  border-color:color-mix(in srgb, var(--c) 35%, #fff);
+  box-shadow:0 4px 22px color-mix(in srgb, var(--c) 18%, transparent);
+}
+.card.on.tinted h3{color:var(--c)}
+.card.on.tinted .badge.used{background:color-mix(in srgb, var(--c) 12%, #fff);color:var(--c)}
+.card.on.tinted .updated,.card.on.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
+.card.on.tinted:hover{border-color:var(--c);box-shadow:0 6px 26px color-mix(in srgb, var(--c) 26%, transparent)}
+.card.off.tinted{
+  background:color-mix(in srgb, var(--c) 8%, #fff);
+  border-color:color-mix(in srgb, var(--c) 30%, #fff);
+}
+.card.off.tinted h3{color:var(--c)}
+.card.off.tinted h3::after{opacity:.4}
+.card.off.tinted p{color:color-mix(in srgb, var(--c) 45%, #5C6B79)}
+.card.off.tinted .badge.free,
+.card.off.tinted .badge.open,
+.card.off.tinted .badge.exp{background:color-mix(in srgb, var(--c) 12%, #fff);color:color-mix(in srgb, var(--c) 65%, #5C6B79)}
+.card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
+.card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
+
+.status-msg{font-size:15px;color:var(--muted);margin-top:12px}
+.status-msg.err{color:#B02E24}
+/* 페이지 하단 업데이트 표시 — update-badge.js가 #ub-footer 안을 커밋 이력으로 갱신하고 클릭 시 내역 패널을 연다 (기획도구 모음 포털과 동일 방식) */
+.page-updated{margin-top:10px;text-align:left;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+@media (max-width:600px){.page-updated{text-align:center}}
+.head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.head-btns{display:flex;gap:8px;flex:none}
+.addbtn{font-family:inherit;font-size:15px;font-weight:600;
+  border:1.5px solid var(--border);border-radius:0;background:#E7EAE6;color:var(--text);
+  padding:9px 16px;cursor:pointer;transition:.15s;white-space:nowrap}
+.addbtn:hover{border-color:var(--brand);color:var(--brand)}
+.addbtn:disabled{opacity:.5;cursor:default}
+.addbtn.on{border-color:var(--brand);color:var(--brand);background:rgba(70,100,126,.06)}
+/* 상단 버튼 3개 — 폭을 좁혀 동일 너비로 통일. '+ 구분선 추가'(관리 모드)만 텍스트가 길어 자동 폭 예외. */
+.head-btns .addbtn{width:80px;padding-left:3px;padding-right:3px;text-align:center}
+.head-btns #addDivBtn{width:auto;padding-left:12px;padding-right:12px}
+
+
+/* ───── 사용방법 모달 ───── */
+.modal-overlay{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(23,34,45,.45);
+  display:none;align-items:flex-start;justify-content:center;
+  padding:48px 16px;overflow-y:auto;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--bg);
+  border:1.5px solid var(--border);
+  border-radius:16px;
+  max-width:560px;width:100%;
+  padding:28px 28px 24px;
+  box-shadow:0 18px 60px rgba(23,34,45,.25);
+}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
+.modal-head h2{font-size:21px}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.modal-close{
+  font-family:inherit;font-size:20px;line-height:1;
+  border:none;background:transparent;color:var(--muted);
+  cursor:pointer;padding:4px;border-radius:0;flex:none;
+}
+.modal-close:hover{background:var(--surface);color:var(--text)}
+.help-item{
+  border:1.5px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:10px;background:var(--surface);
+}
+.help-item h4{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.help-item h4 .tag{
+  font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;
+  background:rgba(70,100,126,.08);color:var(--brand);
+}
+.help-item p{font-size:13px;color:var(--muted);line-height:1.7;margin-top:7px}
+.help-item p b{color:var(--text);font-weight:600}
+.help-badges{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px}
+.help-badges span{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.help-badges .badge{flex:none}
+
+@media (max-width:600px){
+  body{padding:32px 16px}
+  h1{font-size:25px}
+  .head-row{flex-wrap:wrap}
+  .head-btns{width:100%}
+  .head-btns .addbtn{flex:1;width:auto;padding-left:6px;padding-right:6px}
+  .modal{padding:22px 18px}
+}
+</style>
+<!-- update 데이터 인라인: Zero Trust/캐시로 version.json fetch가 막혀도 확실히 표시 -->
+<script>window.__UPDATE_BADGE_DATA={"updated_at":"2026-07-04T05:12:32Z","log":[{"at":"2026-07-04T05:12:32Z","summary":"하단 update 표시 추가 + 상단 버튼 폭 80px로 축소"},{"at":"2026-07-04T05:07:49Z","summary":"방 테마 색 팔레트를 어스 뉴트럴(C안)으로 교체"},{"at":"2026-07-04T04:56:09Z","summary":"방 목록 상단 버튼 3개 동일 너비로 축소"},{"at":"2026-07-04T04:49:50Z","summary":"방 저장(primary) 버튼을 테마색과 분리해 CI 슬레이트블루 고정"},{"at":"2026-07-04T04:41:38Z","summary":"방 테마 컬러 옵션을 선명한 톤으로 교체"},{"at":"2026-07-04T04:38:02Z","summary":"방 내부 페이지 팔레트를 CI 톤으로 통일"},{"at":"2026-07-04T04:23:06Z","summary":"방 컬러 옵션을 CI 편집국 딥톤으로 교체"},{"at":"2026-07-04T04:18:25Z","summary":"방 내부 페이지 요소도 각지게(radius 0) — CI 편집국 톤"},{"at":"2026-07-04T04:10:07Z","summary":"방 카드 모서리도 각지게(radius 0) — CI 편집국 톤"},{"at":"2026-07-04T03:40:13Z","summary":"버튼 모서리를 각지게(radius 0) — CI 편집국 톤"},{"at":"2026-07-04T02:10:52Z","summary":"My Space를 CI 편집국 스타일로 전환"},{"at":"2026-07-02T05:18:57Z","summary":"메모 공유 링크를 해시 대신 ?note= 쿼리 방식으로 변경"},{"at":"2026-07-02T04:45:04Z","summary":"메모 버튼 간격 추가 · 공동현관 통과 시 #note 해시 유지"},{"at":"2026-07-02T04:35:13Z","summary":"메모별 공유 링크: 링크 복사 버튼과 #note-{id} 딥링크 추가"},{"at":"2026-07-02T02:24:44Z","summary":"게시된 웹페이지에 'HTML 다운로드' 버튼 추가"},{"at":"2026-07-02T02:07:43Z","summary":"방 설정에서 방 제목(표시 이름) 수정 지원"},{"at":"2026-07-02T00:27:40Z","summary":"새 방을 첫 구분선 앞(섹션 1 끝)에 추가"},{"at":"2026-07-02T00:18:40Z","summary":"카드 이동 FLIP 애니메이션 + 배치 저장 이원화(방 관리=서버, 평소=로컬)"},{"at":"2026-07-02T00:05:23Z","summary":"구분선 여러 개 지원 + 방 배치(순서·구분선)를 서버에 저장"},{"at":"2026-07-01T23:50:07Z","summary":"방 관리 모드에 '이름 변경' 추가 — 기존 방 이름(주소) 수정 지원"},{"at":"2026-07-01T00:22:09Z","summary":"메모·파일 이미지 첨부/붙여넣기 미리보기 표시"},{"at":"2026-07-01T00:13:00Z","summary":"메모·파일 탭에서 캡처 이미지 붙여넣기(Ctrl/⌘+V) 첨부 지원"},{"at":"2026-06-30T15:04:58Z","summary":"방 페이지 런타임 크래시(Error 1101) 수정 — roomPage의 defaultTab 누락 복구"},{"at":"2026-06-30T14:45:10Z","summary":"삭제한 웹페이지가 다시 살아나는 무한 중첩 근본 해결"},{"at":"2026-06-30T14:27:02Z","summary":"삭제한 웹페이지가 다시 살아나는 무한 중첩 근본 해결"},{"at":"2026-06-30T08:01:04Z","summary":"웹페이지 탭에서 방 화면이 자기 자신 안에 중첩 렌더링되는 문제 수정"},{"at":"2026-06-30T00:34:43Z","summary":"방 페이지 런타임 크래시(Error 1101) 수정 — defaultTab 스코프 오류"},{"at":"2026-06-30T00:26:27Z","summary":"방 진입 시 웹페이지 미게시면 메모·파일 탭을 기본으로 표시"},{"at":"2026-06-29T15:15:01Z","summary":"My Space 사이트 게이트를 포털 공유 세션(SSO·180일)으로 — production(main) 반영"},{"at":"2026-06-29T15:08:58Z","summary":"My Space 사이트 게이트를 포털 공유 세션(SSO·180일)으로 정렬"},{"at":"2026-06-29T14:42:51Z","summary":"폰트 표준 적용: 최소 글자 크기 15px 및 Pretendard 통일"},{"at":"2026-06-28T10:13:34Z","summary":"로비 카드 마우스 드래그가 안 되던 문제 — 포인터 이벤트로 재구현"},{"at":"2026-06-28T09:57:52Z","summary":"로비 방 카드 드래그가 안 되던 문제 수정"},{"at":"2026-06-28T02:04:44Z","summary":"생태계 표의 워드보고서 작성 진입/레포를 agentguide.samsungda.net·agent-guide로 갱신"},{"at":"2026-06-27T07:28:06Z","summary":"version badge — gen-version.mjs, update-badge.js, index.html 스크립트 태그 추가"},{"at":"2026-06-27T07:04:55Z","summary":"왼쪽 하단 업데이트 배지 — 위젯+빌드 스크립트"},{"at":"2026-06-27T07:02:07Z","summary":"배지: index.html에 update-badge.js 스크립트 태그 추가"},{"at":"2026-06-27T06:59:48Z","summary":"배지: 공용 update-badge.js 위젯 추가"},{"at":"2026-06-27T06:59:04Z","summary":"배지: gen-version.mjs 추가 (빌드 시 version.json 생성)"},{"at":"2026-06-27T01:23:04Z","summary":"배포 전 자동 검증 게이트 추가 — 깨진 코드의 production 유입 차단"}]};</script>
+</head>
+<body>
+<div class="wrap">
+
+  <section>
+    <div class="section-head head-row">
+      <div>
+        <h1>My Space</h1>
+        <p class="sub">빈방을 골라 들어가 메모나 파일, HTML을 올려 나만의 페이지로 만들고 공유하는 공간입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head head-row">
+      <div>
+        <h2>방 목록</h2>
+        <p class="desc">space.samsungda.net/A-1 형식으로 각 방에 바로 접속할 수 있습니다.</p>
+      </div>
+      <div class="head-btns">
+        <button class="addbtn" id="addRoomBtn" type="button">+ 빈방 추가</button>
+        <button class="addbtn" id="addDivBtn" type="button" style="display:none">+ 구분선 추가</button>
+        <button class="addbtn" id="mgrBtn" type="button">방 관리</button>
+        <button class="addbtn" id="helpBtn" type="button">사용방법</button>
+      </div>
+    </div>
+    <div class="grid" id="roomGrid"></div>
+    <p class="status-msg" id="msg">불러오는 중…</p>
+  </section>
+
+  <footer class="page-updated" id="ub-footer">update : 2026.7.4</footer>
+
+</div>
+
+<!-- 사용방법 모달 -->
+<div class="modal-overlay" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="helpTitle">사용방법</h2>
+      <button class="modal-close" id="helpClose" type="button" aria-label="닫기">&times;</button>
+    </div>
+    <p class="modal-sub">My Space의 각 메뉴와 방 기능을 설명합니다.</p>
+
+    <div class="help-item">
+      <h4><span class="tag">메뉴</span>+ 빈방 추가</h4>
+      <p>새로운 방을 만듭니다. 입력한 이름이 그대로 주소가 됩니다.
+        예) 이름을 <b>rooftop</b> 으로 지으면 <b>space.samsungda.net/rooftop</b> 으로 바로 접속할 수 있습니다.
+        이름에는 <b>영문·숫자·하이픈(-)·언더스코어(_)</b> 만 쓸 수 있어요 (최대 40자, 공백·한글·특수문자 불가).
+        새 방은 <b>첫 구분선 위(섹션 1의 끝)</b>에 추가됩니다.</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">메뉴</span>방 관리</h4>
+      <p>방 정리 모드를 켭니다. 켜면 각 방 카드에 <b>비우기</b> · <b>방 삭제</b> 버튼이 나타나고,
+        상단에 <b>+ 구분선 추가</b> 버튼이 생깁니다. 구분선의 <b>구분선 삭제</b> 버튼으로 없앨 수도 있어요.
+        다시 누르면 <b>관리 완료</b>로 바뀌며 정리 모드가 꺼집니다.</p>
+      <p>방 관리 모드에서 카드·구분선을 옮기거나 구분선을 추가·삭제하면 <b>서버에 저장</b>되어
+        모든 기기·브라우저에서 같은 배치로 보입니다.</p>
+      <p><b>· 비우기</b> — 방 안의 메모·파일, 게시된 웹페이지, 설정을 모두 지우고 <b>빈방으로 되돌립니다.</b> 방 자체는 그대로 남습니다.<br>
+        <b>· 방 삭제</b> — 방의 모든 데이터를 지우고 <b>목록에서도 방을 없앱니다.</b> (같은 이름으로 빈방을 다시 추가하면 복구됩니다.)</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">방 입장</span>방 카드 클릭</h4>
+      <p>카드를 누르면 해당 방으로 들어갑니다. 빈방이면 바로 <b>메모·파일·HTML</b>을 올려 나만의 페이지로 만들고,
+        사용 중인 방이면 게시된 내용을 보거나 교체·삭제할 수 있습니다.</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">개별 방</span>방 설정</h4>
+      <p>방 상단 우측의 <b>방 설정</b> 버튼을 누르면 설정 패널이 열립니다.</p>
+      <p><b>· 방 이름</b> — 주소에 쓰이는 이름을 바꿉니다. 안의 내용은 그대로 유지되고 <b>주소도 새 이름으로 바뀝니다.</b><br>
+        <b>· 방 제목</b> — 방 목록 카드에 표시되는 제목입니다. 비우면 제목 없이 표시됩니다.<br>
+        <b>· 공개 범위</b> — <b>비공개</b>로 바꾸고 비밀번호를 정하면, 비밀번호를 아는 사람만 열람할 수 있습니다 (모든 탭에 적용).<br>
+        <b>· 사용기한</b> — 기한 없음 / 1일 / 1주일 / 1개월 / 달력 선택. 방 목록 배지로 표시되며 자동 삭제는 되지 않습니다.<br>
+        <b>· 테마 색</b> — 방 화면과 방 목록 카드에 적용할 색을 고릅니다.</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">개별 방</span>탭 2개 — 메모·파일 / 웹페이지</h4>
+      <p><b>· 메모·파일</b> — 텍스트 메모와 파일을 올립니다. 파일은 끌어다 놓거나 클릭해 선택하고,
+        캡처 이미지는 <b>Ctrl/⌘+V</b>로 바로 붙여넣을 수 있어요. 메모마다 <b>링크 복사</b>로 해당 메모로 바로 열리는 공유 링크를 만들 수 있습니다.<br>
+        <b>· 웹페이지</b> — HTML 파일을 게시하면 <b>방 주소가 곧 그 페이지</b>가 됩니다. 페이지 탭의
+        <b>+ 버튼</b>으로 웹페이지를 여러 개 올려 브라우저 탭처럼 전환할 수 있고, 페이지마다
+        <b>HTML 다운로드 · 파일/소스로 교체 · 삭제</b>가 가능합니다. 게시된 방은 들어갈 때 웹페이지 탭이 기본으로 열립니다.</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">정렬</span>카드 드래그 · 구분선</h4>
+      <p>카드를 끌어다 놓으면 방 순서를 바꿀 수 있습니다. 목록에는 <b>구분선</b>을 여러 개 둘 수 있어, 카드를 구분선
+        <b>위/아래로 옮겨</b> 자주 쓰는 방과 그 외 방을 나눠 둘 수 있어요. 구분선 자체도 끌어서 옮길 수 있습니다.</p>
+      <p><b>평소에 옮기면</b> 이 브라우저에만 저장되어 나만의 배치가 되고,
+        <b>방 관리 모드에서 옮기면</b> 서버에 저장되어 모든 기기·브라우저에서 동일한 배치로 보입니다.</p>
+    </div>
+
+    <div class="help-item">
+      <h4><span class="tag">배지</span>카드에 표시되는 상태</h4>
+      <div class="help-badges">
+        <span><span class="badge used">사용중</span> 내용이 채워진 방</span>
+        <span><span class="badge free">빈방</span> 비어 있는 방</span>
+        <span><span class="badge open">공개</span> 누구나 열람 가능</span>
+        <span><span class="badge lock">비공개</span> 비밀번호 필요</span>
+        <span><span class="badge exp">~07-09</span> 사용 기한</span>
+        <span><span class="badge expired">기한 만료</span> 기한 지남</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var grid = document.getElementById('roomGrid');
+  var msg = document.getElementById('msg');
+  var mgrBtn = document.getElementById('mgrBtn');
+  var addBtn = document.getElementById('addRoomBtn');
+  var addDivBtn = document.getElementById('addDivBtn');
+  var helpBtn = document.getElementById('helpBtn');
+  var helpModal = document.getElementById('helpModal');
+  var helpClose = document.getElementById('helpClose');
+  var roomsCache = [];
+  var manage = false;
+  var dividerPositions = [];   // 구분선 위치들 — "이 인덱스의 카드 앞" (여러 개 가능)
+  // 배치 저장은 두 겹: 방 관리 모드에서 옮기면 서버(모든 기기 공통),
+  // 평소에 옮기면 이 브라우저(localStorage)에만 저장 — 로컬 배치가 있으면 서버 배치보다 우선
+  var LAYOUT_KEY = 'samsungda_room_layout';
+  // 예전 키(순서·구분선 분리 저장) — 새 로컬 배치 키로 1회 변환할 때만 사용
+  var ORDER_KEY = 'samsungda_room_order';
+  var DIVIDER_KEY = 'samsungda_room_divider';
+
+  function esc(s){
+    return String(s || '').replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function expBadge(r){
+    if(!r.expiresAt) return '';
+    if(r.expired) return '<span class="badge expired">기한 만료</span>';
+    return '<span class="badge exp">~' + esc(r.expiresAt.slice(5)) + '</span>';
+  }
+
+  function descLine(r){
+    if(r.published) return esc(r.title || '(제목 없음)');
+    if(r.used) return '메모·파일이 저장되어 있습니다.';
+    return '비어 있는 방입니다. 들어가서 바로 사용해보세요.';
+  }
+
+  function makeDivider(k){
+    var d = document.createElement('div');
+    d.className = 'divider';
+    d.dataset.divider = '1';
+    if(manage){
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'divrm';
+      rm.textContent = '구분선 삭제';
+      rm.addEventListener('click', function(){
+        dividerPositions.splice(k, 1);
+        render();
+        saveLayout();
+      });
+      d.appendChild(rm);
+    } else {
+      d.setAttribute('aria-hidden', 'true');
+    }
+    return d;
+  }
+
+  // i번째 카드 앞에 놓일 구분선들을 그린다 (i === 카드 수면 맨 끝)
+  function appendDividersAt(i){
+    var n = roomsCache.length;
+    dividerPositions.forEach(function(p, k){
+      var pos = Math.max(0, Math.min(p, n));
+      if(pos === i) grid.appendChild(makeDivider(k));
+    });
+  }
+
+  function render(){
+    grid.innerHTML = '';
+    roomsCache.forEach(function (r, i) {
+      appendDividersAt(i);
+      var card = document.createElement('a');
+      card.className = 'card ' + (r.used ? 'on' : 'off');
+      card.href = '/' + encodeURIComponent(r.id);
+      card.dataset.id = r.id;
+      // <a> 기본 '링크 끌기'가 발동하면 포인터 드래그가 pointercancel로 끊긴다 → 비활성화.
+      card.draggable = false;
+
+      var color = (r.color && /^#[0-9a-f]{6}$/i.test(r.color)) ? r.color : '';
+      if(color){
+        card.classList.add('tinted');
+        card.style.setProperty('--c', color);
+      }
+
+      var badges = '<div class="badges">'
+        + (r.used ? '<span class="badge used">사용중</span>' : '<span class="badge free">빈방</span>')
+        + (r.locked ? '<span class="badge lock">비공개</span>' : '<span class="badge open">공개</span>')
+        + expBadge(r)
+        + '</div>';
+
+      var dot = color ? '<span class="dot" style="background:' + color + '"></span>' : '';
+      var html = '<h3>' + dot + esc(r.id) + '</h3>'
+        + '<p>' + descLine(r) + '</p>'
+        + badges
+        + (r.updated ? '<div class="updated">업데이트 ' + esc(r.updated) + '</div>' : '');
+      card.innerHTML = html;
+
+      if(manage){
+        var mgr = document.createElement('div');
+        mgr.className = 'mgr';
+        [['비우기', 'clear'], ['방 삭제', 'delete']].forEach(function(def){
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = def[0];
+          btn.addEventListener('click', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            destroyRoom(r, def[1]);
+          });
+          mgr.appendChild(btn);
+        });
+        card.appendChild(mgr);
+      }
+
+      grid.appendChild(card);
+    });
+    appendDividersAt(roomsCache.length);
+  }
+
+  // 드래그 후 DOM 순서를 읽어 방 순서·구분선 위치를 동기화
+  function syncFromDom(){
+    var order = [], divs = [];
+    Array.prototype.forEach.call(grid.children, function(el){
+      if(el.dataset.divider){ divs.push(order.length); }
+      else if(el.dataset.id){ order.push(el.dataset.id); }
+    });
+    var map = {};
+    roomsCache.forEach(function(r){ map[r.id] = r; });
+    roomsCache = order.map(function(id){ return map[id]; }).filter(Boolean);
+    dividerPositions = divs;
+  }
+
+  // 배치(방 순서·구분선 위치)를 서버에 저장 — 모든 기기·브라우저에 공통 적용
+  // 서버에 저장하면 이 브라우저 전용 배치는 지워 서버 배치를 따르게 한다
+  function saveLayout(){
+    clearLocalLayout();
+    fetch('/api/rooms', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        order: roomsCache.map(function(r){ return r.id; }),
+        dividers: dividerPositions
+      })
+    }).then(function(res){
+      if(!res.ok){
+        msg.className = 'status-msg err';
+        msg.textContent = '배치 저장 실패 (HTTP ' + res.status + ') — 새로고침 시 순서가 되돌아갈 수 있어요.';
+      }
+    }).catch(function(e){
+      msg.className = 'status-msg err';
+      msg.textContent = '배치 저장 실패: ' + e.message;
+    });
+  }
+
+  // 배치를 이 브라우저에만 저장 (방 관리 밖에서 옮겼을 때)
+  function saveLocalLayout(){
+    try{
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify({
+        order: roomsCache.map(function(r){ return r.id; }),
+        dividers: dividerPositions
+      }));
+    }catch(e){}
+  }
+
+  function clearLocalLayout(){
+    try{ localStorage.removeItem(LAYOUT_KEY); }catch(e){}
+  }
+
+  // 이 브라우저 전용 배치가 있으면 서버 배치 위에 덧입힌다
+  // (저장 이후 생긴 새 방은 첫 구분선 앞(섹션 1 끝)에, 삭제된 방 이름은 걸러서)
+  function applyLocalLayout(){
+    try{
+      var saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
+      if(!saved || !Array.isArray(saved.order)) return;
+      var map = {};
+      roomsCache.forEach(function(r){ map[r.id] = r; });
+      var ordered = [];
+      saved.order.forEach(function(id){ if(map[id]){ ordered.push(map[id]); delete map[id]; } });
+      var divs = Array.isArray(saved.dividers)
+        ? saved.dividers
+            .filter(function(p){ return typeof p === 'number' && p >= 0; })
+            .map(function(p){ return Math.min(p, ordered.length); })
+            .sort(function(a, b){ return a - b; })
+        : dividerPositions.slice();
+      var extras = Object.values(map);
+      if(extras.length){
+        var at = divs.length ? divs[0] : ordered.length;
+        Array.prototype.splice.apply(ordered, [at, 0].concat(extras));
+        divs = divs.map(function(p){ return p >= at ? p + extras.length : p; });
+      }
+      roomsCache = ordered;
+      dividerPositions = divs;
+    }catch(e){}
+  }
+
+  // 예전 키(순서·구분선 분리 저장)를 새 로컬 배치 키로 1회 변환
+  function migrateLegacyKeys(){
+    try{
+      var order = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null');
+      var d = JSON.parse(localStorage.getItem(DIVIDER_KEY) || 'null');
+      if(Array.isArray(order)){
+        if(!localStorage.getItem(LAYOUT_KEY)){
+          localStorage.setItem(LAYOUT_KEY, JSON.stringify({
+            order: order,
+            dividers: (typeof d === 'number' && d >= 0) ? [d] : [order.length]
+          }));
+        }
+      }
+      localStorage.removeItem(ORDER_KEY);
+      localStorage.removeItem(DIVIDER_KEY);
+    }catch(e){}
+  }
+
+  // ----- 포인터 기반 드래그 정렬 -----
+  // 카드가 <a> 링크라서, 끌면 브라우저 기본 '링크 끌기'가 발동해 정렬 드래그를 가로챈다.
+  // 이를 피하려고 HTML5 드래그(SortableJS 폴백) 대신 포인터 이벤트로 직접 옮긴다.
+  // 살짝 누른 뒤 일정 거리 이상 움직여야 드래그로 인식하므로, 그냥 클릭하면 방으로 들어간다.
+  var DRAG_THRESHOLD = 5;     // 이 거리(px) 넘게 움직여야 드래그 시작
+  var press = null;           // { el, pid, x0, y0, dragging }
+  var suppressClick = false;  // 드래그 직후 따라오는 클릭(방 이동) 1회 무시
+
+  // FLIP 애니메이션 — 드래그로 카드가 밀려날 때 순간이동 대신 제자리에서 미끄러지게.
+  // 이동 전 위치를 기억했다가, DOM을 옮긴 뒤 옛 위치→새 위치로 transform을 되감는다.
+  var flipAnims = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+  function withFlip(mutate){
+    if(!flipAnims || !grid.firstElementChild || typeof grid.firstElementChild.animate !== 'function'){
+      mutate();
+      return;
+    }
+    var els = Array.prototype.slice.call(grid.children);
+    // 진행 중인 애니메이션의 중간 위치를 기준으로 삼아, 연속 이동도 끊김 없이 이어진다
+    var rects = els.map(function(el){ return el.getBoundingClientRect(); });
+    mutate();
+    els.forEach(function(el, i){
+      if(el.parentNode !== grid) return;
+      var prev = flipAnims.get(el);
+      if(prev) prev.cancel();
+      var now = el.getBoundingClientRect();
+      var dx = rects[i].left - now.left;
+      var dy = rects[i].top - now.top;
+      if(!dx && !dy) return;
+      var anim = el.animate(
+        [{ transform: 'translate(' + dx + 'px,' + dy + 'px)' }, { transform: 'none' }],
+        { duration: 180, easing: 'ease' }
+      );
+      flipAnims.set(el, anim);
+    });
+  }
+
+  function clearDividerMark(){
+    Array.prototype.forEach.call(grid.querySelectorAll('.divider.drag-over'), function(d){
+      d.classList.remove('drag-over');
+    });
+  }
+
+  // FLIP 애니메이션 중인 요소의 "레이아웃상 위치" — transform(미끄러지는 중간 위치)을 걷어낸 값.
+  // 시각적 위치로 판정하면 방금 밀려난 카드가 커서 밑으로 되돌아와 자리가 튕기는 되먹임이 생긴다.
+  function layoutRect(el){
+    var r = el.getBoundingClientRect();
+    var t = getComputedStyle(el).transform;
+    if(t && t !== 'none'){
+      var m = t.match(/^matrix\(([^)]+)\)$/);
+      if(m){
+        var p = m[1].split(',');
+        return { left: r.left - parseFloat(p[4]), top: r.top - parseFloat(p[5]), width: r.width, height: r.height };
+      }
+    }
+    return r;
+  }
+
+  // 커서 위치 기준으로 "이 요소 앞에 끼워넣어야 한다"는 대상(카드 또는 구분선)을 찾는다.
+  function afterTarget(x, y){
+    var els = Array.prototype.slice.call(grid.querySelectorAll('.card:not(.dragging), .divider:not(.dragging)'));
+    var best = null, bestDist = Infinity;
+    els.forEach(function(el){
+      var b = layoutRect(el);
+      var cx = b.left + b.width/2, cy = b.top + b.height/2;
+      var before = (y < cy - b.height/2) || (Math.abs(y - cy) <= b.height/2 && x < cx);
+      if(!before) return;
+      var dist = Math.hypot(x - cx, y - cy);
+      if(dist < bestDist){ bestDist = dist; best = el; }
+    });
+    return best; // null이면 맨 끝
+  }
+
+  grid.addEventListener('pointerdown', function(e){
+    suppressClick = false;
+    if(e.button !== 0 || e.pointerType === 'touch') return; // 마우스·펜만, 터치는 스크롤 보존
+    var card = e.target.closest ? e.target.closest('.card, .divider') : null; // 구분선도 끌 수 있다
+    if(!card || !grid.contains(card)) return;
+    if(e.target.closest('.mgr') || e.target.closest('.divrm')) return; // 관리·구분선 삭제 버튼은 드래그 제외
+    press = { el: card, pid: e.pointerId, x0: e.clientX, y0: e.clientY, dragging: false };
+  });
+
+  document.addEventListener('pointermove', function(e){
+    if(!press || e.pointerId !== press.pid) return;
+    if(!press.dragging){
+      if(Math.hypot(e.clientX - press.x0, e.clientY - press.y0) < DRAG_THRESHOLD) return;
+      press.dragging = true;
+      press.el.classList.add('dragging');
+      grid.classList.add('dragging-active');
+      try { press.el.setPointerCapture(press.pid); } catch(_){}
+      msg.className = 'status-msg';
+      msg.textContent = '이동 중… 구분선 위/아래로 옮길 수 있어요.';
+    }
+    e.preventDefault();
+    var dragEl = press.el;
+    var ref = afterTarget(e.clientX, e.clientY);
+    if(ref !== dragEl){
+      withFlip(function(){
+        if(ref) grid.insertBefore(dragEl, ref);
+        else grid.appendChild(dragEl);
+      });
+    }
+    clearDividerMark();
+    [dragEl.previousElementSibling, dragEl.nextElementSibling].forEach(function(n){
+      if(n && n.dataset && n.dataset.divider) n.classList.add('drag-over');
+    });
+  });
+
+  function endPress(commit){
+    if(!press) return;
+    var was = press.dragging;
+    if(was){
+      press.el.classList.remove('dragging');
+      grid.classList.remove('dragging-active');
+      clearDividerMark();
+      msg.textContent = '';
+    }
+    press = null;
+    if(was){
+      suppressClick = true;       // 방금 끝난 드래그의 클릭은 방 이동으로 처리하지 않음
+      if(commit){
+        syncFromDom();            // DOM 순서 기준으로 방 순서·구분선 위치 재계산
+        // 방 관리 모드에서 옮기면 서버(모든 기기 공통), 평소에는 이 브라우저에만 저장
+        if(manage) saveLayout();
+        else saveLocalLayout();
+      }
+    }
+  }
+
+  document.addEventListener('pointerup', function(e){
+    if(!press || e.pointerId !== press.pid) return;
+    endPress(true);
+  });
+  document.addEventListener('pointercancel', function(e){
+    if(!press || e.pointerId !== press.pid) return;
+    endPress(false);
+  });
+
+  // 드래그 직후 따라오는 클릭 1회를 가로채 방 이동을 막는다.
+  grid.addEventListener('click', function(e){
+    if(suppressClick){ e.preventDefault(); e.stopPropagation(); suppressClick = false; }
+  }, true);
+
+  function destroyRoom(r, mode){
+    var q = mode === 'clear'
+      ? "'" + r.id + "' 방의 모든 데이터(메모·파일, 게시된 웹페이지, 설정)를 비울까요? 방 자체는 유지됩니다."
+      : "'" + r.id + "' 방을 삭제할까요? 모든 데이터가 삭제되고 방 목록에서 사라집니다.\n(같은 이름으로 빈방을 다시 추가하면 방이 복구됩니다)";
+    if(!window.confirm(q)) return;
+
+    var headers = { 'content-type': 'application/json' };
+    if(r.locked){
+      var pw = window.prompt('비공개 방입니다. 비밀번호를 입력하세요.');
+      if(pw === null) return;
+      headers['x-room-password'] = pw;
+    }
+    msg.className = 'status-msg';
+    msg.textContent = '처리 중…';
+    fetch('/api/rooms', {
+      method: 'DELETE',
+      headers: headers,
+      body: JSON.stringify({ id: r.id, mode: mode })
+    }).then(function(res){
+      if(res.ok){ loadRooms(); return; }
+      msg.className = 'status-msg err';
+      msg.textContent = res.status === 401 ? '비밀번호가 올바르지 않습니다.' : '처리 실패 (HTTP ' + res.status + ')';
+    }).catch(function(e){
+      msg.className = 'status-msg err';
+      msg.textContent = '처리 실패: ' + e.message;
+    });
+  }
+
+  function loadRooms(){
+    // 응답이 멈춰도 영영 "불러오는 중…"에 머물지 않도록 타임아웃을 둔다.
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = setTimeout(function(){ if(ctrl) ctrl.abort(); }, 12000);
+    fetch('/api/rooms', ctrl ? { signal: ctrl.signal } : undefined)
+      .then(function(r){
+        clearTimeout(timer);
+        if(!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data){
+        roomsCache = data.rooms || [];
+        dividerPositions = Array.isArray(data.dividers) ? data.dividers : [];
+        // 서버에 저장된 배치가 아직 없으면 예전 기본값(맨 끝 구분선 1개)
+        if(!data.layoutSaved) dividerPositions = [roomsCache.length];
+        migrateLegacyKeys();
+        applyLocalLayout();   // 이 브라우저 전용 배치가 있으면 서버 배치보다 우선
+        render();
+        msg.className = 'status-msg';
+        msg.textContent = '';
+      })
+      .catch(function(e){
+        clearTimeout(timer);
+        var why = (e && e.name === 'AbortError') ? '응답 시간이 초과되었습니다' : e.message;
+        msg.className = 'status-msg err';
+        msg.textContent = '방 목록을 불러오지 못했습니다: ' + why + ' — 새로고침해 주세요.';
+      });
+  }
+
+  function openHelp(){ helpModal.classList.add('open'); }
+  function closeHelp(){ helpModal.classList.remove('open'); }
+
+  helpBtn.addEventListener('click', openHelp);
+  helpClose.addEventListener('click', closeHelp);
+  helpModal.addEventListener('click', function(e){
+    if(e.target === helpModal) closeHelp();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeHelp();
+  });
+
+  mgrBtn.addEventListener('click', function(){
+    manage = !manage;
+    mgrBtn.textContent = manage ? '관리 완료' : '방 관리';
+    mgrBtn.className = manage ? 'addbtn on' : 'addbtn';
+    addDivBtn.style.display = manage ? '' : 'none';
+    render();
+  });
+
+  addDivBtn.addEventListener('click', function(){
+    dividerPositions.push(roomsCache.length); // 맨 끝에 추가 — 끌어서 원하는 자리로 옮길 수 있다
+    render();
+    saveLayout();
+  });
+
+  addBtn.addEventListener('click', function(){
+    var name = (window.prompt('새 방 이름을 입력하세요. 이 이름이 주소가 됩니다.\n(영문·숫자·하이픈(-)·언더스코어(_), 최대 40자)') || '').trim();
+    if(!name) return;
+    if(!/^[A-Za-z0-9_-]{1,40}$/.test(name)){
+      window.alert('이름에는 영문·숫자·하이픈(-)·언더스코어(_)만 쓸 수 있어요. (공백·한글·특수문자 불가)');
+      return;
+    }
+    addBtn.disabled = true;
+    fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: name })
+    }).then(function(r){
+      if(r.status === 201){ location.href = '/' + encodeURIComponent(name); return; }
+      if(r.status === 409){ window.alert('이미 같은 이름의 방이 있어요.'); }
+      else if(r.status === 400){ window.alert('사용할 수 없는 이름이에요.'); }
+      else { window.alert('방 생성 실패 (HTTP ' + r.status + ')'); }
+      addBtn.disabled = false;
+    }).catch(function(e){ window.alert('방 생성 실패: ' + e.message); addBtn.disabled = false; });
+  });
+
+  loadRooms();
+})();
+</script>
+<!-- 도구모음 런처 (samsungda.net) -->
+<style>
+.da-launcher{position:fixed;top:14px;right:16px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;height:29px;padding:0 9px;border:1.5px solid #D3D9D6;border-radius:7px;background:rgba(255,255,255,.92);-webkit-backdrop-filter:saturate(180%) blur(6px);backdrop-filter:saturate(180%) blur(6px);text-decoration:none;color:#17222D;font-family:'Pretendard',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:600;line-height:1;transition:.15s}
+.da-launcher:hover{border-color:#46647E;box-shadow:0 4px 18px rgba(70,100,126,.12)}
+.da-launcher .da-gi{display:grid;grid-template-columns:1fr 1fr;gap:2px;width:18px;height:18px}
+.da-launcher .da-gi i{background:#5C6B79;border-radius:1px;transition:.15s}
+.da-launcher:hover .da-gi i{background:#46647E}
+</style>
+<a class="da-launcher" href="https://samsungda.net" title="도구모음 열기">
+  <span class="da-gi"><i></i><i></i><i></i><i></i></span>도구모음
+</a>
+<script defer src="/update-badge.js?v=20260704" data-src="/version.json" data-repo="SimpleorNothing/samsungda-space"></script>
+</body>
+</html>
 PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImtvIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVURi04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxpbml0aWFsLXNjYWxlPTEuMCI+Cjx0aXRsZT5NeSBTcGFjZTwvdGl0bGU+CjxsaW5rIHJlbD0ic3R5bGVzaGVldCIgaHJlZj0iaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL29yaW9uY2FjdHVzL3ByZXRlbmRhcmRAdjEuMy45L2Rpc3Qvd2ViL3N0YXRpYy9wcmV0ZW5kYXJkLm1pbi5jc3MiPgo8c3R5bGU+Cjpyb290ewogIC0tYmc6I0VKRUZFQYSGBSY0LFRoOTsgIC8vIOq3uOumsOyYpOuLrCDsmrDshKAKfQoqnBib3gtc2l6aW5nOmJvcmRlci1ib3g7bWFyZ2luOjA7cGFkZGluZzowfQpib2R5ewogIGJhY2tncm91bmQ6dmFyKC0tYmcpOwogIGNvbG9yOnZhcigtLXRleHQpOwogIGZvbnQtZmFtaWx5OiJQcmV0ZW5kYXJkIiwtYXBwbGUtc3lzdGVtLEJsaW5rTWFjU3lzdGVtRm9udCwiQXBwbGUgU0QgR290aGljIE5lbyIsIk1hbGd1biBHb3RoaWMiLHNhbnMtc2VyaWY7CiAgcGFkZGluZzo1NnB4IDI0cHg7Cn0KLndyYXB7bWF4LXdpZHRoOjg2MHB4O21hcmdpbjowIGF1dG99Cmgxe2ZvbnQtc2l6ZTozMHB4O2ZvbnQtd2VpZ2h0OjgwMDtsZXR0ZXItc3BhY2luZzotMC41cHg7bGluZS1oZWlnaHQ6MS4yfQouc3ViIHtmb250LXNpemU6MTVweDtjb2xvcjp2YXIoLS1tdXRlZCk7bWFyZ2luLXRvcDo2cHh9CmgyIHtmb250LXNpemU6MjBweDtmb250LXdlaWdodDo3MDA7bGV0dGVyLXNwYWNpbmc6LTAuM3B4fQouZGVzY3tmbG9udC1zaXplOjE1cHg7Y29sb3I6dmFyKC0tbXV0ZWQpO21hcmdpbi10b3A6NHB4fQpzZWN0aW9ue21hcmdpbi1ib3R0b206NDBweCJ9Ci5zZWN0aW9uLWhlYWR7bWFyZ2luLWJvdHRvbToxNnB4fQouZ3JpZHtkaXNwbGF5OmdyaWQ7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOnJlcGVhdCgzLG1pbm1heCgwLDFmcikpO2dhcDoxNHB4fQpAbWVkaWEgKG1heC13aWR0aDo2MDBweCl7LmdyaWR7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOjFmcn19CgovKiDqtazrtoTshKAg4oCUIOq3uOumrOuTnCDsoITssrQg7Y+t7J2EIOywqOyngO2VmOuKlCDqsIDroZwg6rWs67aE7ISgLiDsnIQv7JWE656Y66GcIOuwqeydhCDrgpjriIjri6QuCiAgIOy5tOuTnOyymOufvCDrgYzslrTshJwg7JyE7LmY66W8IOyYruq4uCDsiJgg7J6I6rOgLCDqtIDrpqwg66qo65Oc7JeQ7ISc64qUIOy2lOqwgMK37IKt7KCc7ZWgIOyImCDsnojri6QuICovCi5kaXZpZGVyewogIGdyaWQtY29sdW1uOjEgLyAtMTsKICBkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDoxMnB4OwogIG1hcmdpbjo2cHggMDtjb2xvcjp2YXIoLS1tdXRlZCk7Zm9udC1zaXplOjE1cHg7Zm9udC13ZWlnaHQ6NjAwOwogIGN1cnNvcjpncmFiO21pbi1oZWlnaHQ6MTRweDsKfQouZGl2aWRlcjphY3RpdmV7Y3Vyc29yOmdyYWJiaW5nfQouZGl2aWRlci5kcmFnZ2luZ3tvcGFjaXR5Oi40NX0KLmRpdmlkZXI6OmJlZm9yZSwuZGl2aWRlcjo6YWZ0ZXJ7Y29udGVudDoiIjtmbGV4OjE7aGVpZ2h0OjA7Ym9yZGVyLXRvcDoycHggZGFzaGVkIHZhcigtLWJvcmRlcil9Ci5kaXZpZGVyIC5kaXZybXsKICBmb250LWZhbWlseTppbmhlcml0O2ZvbnQtc2l6ZToxM3B4O2ZvbnQtd2VpZ2h0OjYwMDsKICBib3JkZXI6MS41cHggc29saWQgdmFyKC0tYm9yZGVyKTtib3JkZXItcmFkaXVzOjA7YmFja2dyb3VuZDojZmZmO2NvbG9yOnZhcigtLS1tdXRlZCk7CiAgcGFkZGluZzozcHggMTBweDtjdXJzb3I6cG9pbnRlcjt0cmFuc2l0aW9uOi4xNXM7Zmxldzpub25lOwp9Ci5kaXZpZGVyIC5kaXZybTpob3ZlcntiYWNrZ3JvdW5kOiNGNUU0RTI7Y29sb3I6I0IwMkUyNDtib3JkZXItY29sb3I6I0Y1RTRFMn0KLmdyaWQucmVvcmRlciAuZGl2aWRlcntjb2xvcjp2YXIoLS1icmFuZCl9Ci5ncmlkLnJlb3JkZXIgLmRpdmlkZXI6OmJlZm9yZSwuZ3JpZC5yZW9yZGVyIC5kaXZpZGVyOjphZnRlcntib3JkZXItdG9wLWNvbG9yOnZhcigtLWJyYW5kKX0KCi8qIOyDgeuLqCDrsoDsu5jsoITsnqUg7Jy866GcIOyUkSDsgq3soJzshbHsaKrrhpPsnbznvbDsnbTshKAg66aIIOqzoCDigJQg77m_77u_IOq1rOu2hOyEoCDsnITsuZjrubQg7ZWY656Y66GcIOKAlCAwIiwgMiAi4oCUIEzsnbBIOK3t2K9z7JWEIOuppOyZgOuLiOuLpC4vKgovKiDsnbTrj5ng7KSR4oCmIOKAlCDquazrs4Qszo0tIOuplOuqqMK37YyM7J28IvCt74KFIOyXvOycvOuptCDrnpDrj5k3J50pKgovKi4uLgovCi5jYXJkeyAKICBkaXNwbGF5OmJsb2NrOwogIG1pbi13aWR0aDowOwogIGJhY2tncm91bmQ6dmFyKC1ZCVSVYWNFKQOGBSY0LFRoOTsgCiAgYm9yZGVyOjEuNXB4IHNvbGlkIHZhcigtLWJvcmRlcik7CiAgYm9yZGVyLXJhZGl1czowOwogIHBhZGRpbmc6MjZweCAyMnB4OwogIGN1cnNvcjpwb2ludGVyOwogIHRyYW5zaXRpb246LjE1czsKICB0ZXh0LWRlY29yYXRpb246bm9uZTsKICBjb2xvcjppbmhlcml0Owp9Ci5jYXJkOmhvdmVye2JvcmRlci1jb2xvcjp2YXIoLS1icmFuZCk7Ym94LXNoYWRvdzowIDRweCAxOHB4IHJnYmEoNzAsMTAwLDEyNiwuMTApfQovKi4u4oCRIOq6pOydyOulfSE99z0vCi8uLi8gLS3svJ0g+rO86rC05K+d*/
