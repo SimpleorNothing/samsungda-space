@@ -209,6 +209,20 @@ section{margin-bottom:40px}
 .help-badges span{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .help-badges .badge{flex:none}
 
+/* 업데이트 내역 섹션 */
+.update-history{background:rgba(70,100,126,.03);border:1px solid rgba(70,100,126,.12);padding:20px;margin-top:20px}
+.update-history h3{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.05em;margin-bottom:14px;text-transform:uppercase}
+.update-group{margin-bottom:20px}
+.update-group:last-child{margin-bottom:0}
+.update-group-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(70,100,126,.12)}
+.update-item{font-size:12.5px;color:var(--muted);padding:6px 0;line-height:1.6}
+.update-item .date{font-family:ui-monospace,monospace;font-size:11.5px;color:#999;margin-right:8px}
+.update-item .summary{color:var(--text);display:inline}
+.room-update-item{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;padding:8px 0;border-bottom:1px dotted rgba(70,100,126,.12)}
+.room-update-item:last-child{border-bottom:none}
+.room-update-name{font-weight:600;color:var(--text);min-width:100px}
+.room-update-date{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--muted);text-align:right}
+
 @media (max-width:600px){
   body{padding:32px 16px}
   h1{font-size:25px}
@@ -216,6 +230,8 @@ section{margin-bottom:40px}
   .head-btns{width:100%}
   .head-btns .addbtn{flex:1;width:auto;padding-left:6px;padding-right:6px}
   .modal{padding:22px 18px}
+  .room-update-item{flex-direction:column;align-items:flex-start;gap:4px}
+  .room-update-date{text-align:left}
 }
 </style>
 <!-- update 데이터 인라인: Zero Trust/캐시로 version.json fetch가 막혀도 확실히 표시 -->
@@ -248,6 +264,28 @@ section{margin-bottom:40px}
     </div>
     <div class="grid" id="roomGrid"></div>
     <p class="status-msg" id="msg">불러오는 중…</p>
+  </section>
+
+  <!-- 업데이트 내역 -->
+  <section id="updateSection" style="display:none">
+    <div class="section-head head-row">
+      <div>
+        <h2>업데이트 내역</h2>
+        <p class="desc">스페이스 UI 변경 및 개별 방 수정 이력</p>
+      </div>
+    </div>
+
+    <div class="update-history">
+      <h3>🔄 스페이스 전체 변경</h3>
+      <div class="update-group" id="siteChanges">
+        <p class="muted" style="font-size:12px;color:#999">로드 중…</p>
+      </div>
+
+      <h3 style="margin-top:24px">📝 개별 방 수정</h3>
+      <div class="update-group" id="roomChanges">
+        <p class="muted" style="font-size:12px;color:#999">로드 중…</p>
+      </div>
+    </div>
   </section>
 
   <footer class="page-updated" id="ub-footer"></footer>
@@ -447,6 +485,47 @@ section{margin-bottom:40px}
       grid.appendChild(card);
     });
     appendDividersAt(roomsCache.length);
+    renderUpdateHistory();
+  }
+
+  // 업데이트 내역 렌더링
+  function renderUpdateHistory(){
+    var updateSec = document.getElementById('updateSection');
+    var siteChanges = document.getElementById('siteChanges');
+    var roomChanges = document.getElementById('roomChanges');
+
+    if(!updateSec || !siteChanges || !roomChanges) return;
+
+    // 스페이스 전체 변경 — version.json의 로그에서 최근 20개만 표시
+    var badgeData = window.__UPDATE_BADGE_DATA;
+    if(badgeData && badgeData.log && badgeData.log.length > 0){
+      var logs = badgeData.log.slice(0, 20);
+      var html = logs.map(function(item){
+        var date = item.at ? item.at.slice(0, 10) : '';
+        return '<div class="update-item"><span class="date">' + esc(date) + '</span><span class="summary">' + esc(item.summary) + '</span></div>';
+      }).join('');
+      siteChanges.innerHTML = html;
+    } else {
+      siteChanges.innerHTML = '<p class="muted" style="font-size:12px;color:#999">변경 기록 없음</p>';
+    }
+
+    // 개별 방 수정 이력 — updated가 있는 방들만 시간순으로 정렬
+    var roomsWithUpdate = roomsCache.filter(function(r){ return r.updated; })
+      .sort(function(a, b){ return (b.updated || '').localeCompare(a.updated || ''); });
+
+    if(roomsWithUpdate.length > 0){
+      var html = roomsWithUpdate.slice(0, 15).map(function(r){
+        return '<div class="room-update-item"><span class="room-update-name">' + esc(r.id) + '</span><span class="room-update-date">' + esc(r.updated) + '</span></div>';
+      }).join('');
+      roomChanges.innerHTML = html;
+    } else {
+      roomChanges.innerHTML = '<p class="muted" style="font-size:12px;color:#999">수정 기록 없음</p>';
+    }
+
+    // 내용이 있으면 섹션 표시
+    if(roomsWithUpdate.length > 0 || (badgeData && badgeData.log && badgeData.log.length > 0)){
+      updateSec.style.display = '';
+    }
   }
 
   // 드래그 후 DOM 순서를 읽어 방 순서·구분선 위치를 동기화
