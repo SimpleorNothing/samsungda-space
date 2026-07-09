@@ -137,9 +137,13 @@ export async function listPages(env, room, meta) {
 
 // 메모·파일 읽기
 async function readNotes(env, room) {
-  const obj = await env.SPACE.get('rooms/' + room + '/notes.json');
-  if (!obj) return { items: [] };
-  try { return JSON.parse(await obj.text()); } catch (e) { return { items: [] }; }
+  try {
+    const obj = await env.SPACE.get('rooms/' + room + '/notes.json');
+    if (!obj) return { items: [] };
+    return JSON.parse(await obj.text());
+  } catch (e) {
+    return { items: [] };
+  }
 }
 
 // 가장 최근 활동 탭 결정 — 메모/웹페이지 중 최근 업데이트가 있는 탭을 기본으로
