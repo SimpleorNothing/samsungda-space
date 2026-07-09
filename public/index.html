@@ -83,7 +83,7 @@ section{margin-bottom:40px}
 .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .badge{
   display:inline-block;font-size:15px;font-weight:600;
-  padding:3px 9px;border-radius:7px;
+  padding:3px 9px;border-radius:0;
 }
 .badge.free{background:#E7EAE6;color:var(--muted)}
 .badge.used{background:rgba(70,100,126,.08);color:var(--brand)}
@@ -179,7 +179,7 @@ section{margin-bottom:40px}
 .modal{
   background:var(--bg);
   border:1.5px solid var(--border);
-  border-radius:16px;
+  border-radius:0;
   max-width:560px;width:100%;
   padding:28px 28px 24px;
   box-shadow:0 18px 60px rgba(23,34,45,.25);
@@ -194,12 +194,12 @@ section{margin-bottom:40px}
 }
 .modal-close:hover{background:var(--surface);color:var(--text)}
 .help-item{
-  border:1.5px solid var(--border);border-radius:12px;
+  border:1.5px solid var(--border);border-radius:0;
   padding:14px 16px;margin-bottom:10px;background:var(--surface);
 }
 .help-item h4{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
 .help-item h4 .tag{
-  font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;
+  font-size:12px;font-weight:600;padding:2px 8px;border-radius:0;
   background:rgba(70,100,126,.08);color:var(--brand);
 }
 .help-item p{font-size:13px;color:var(--muted);line-height:1.7;margin-top:7px}
@@ -793,10 +793,10 @@ section{margin-bottom:40px}
 </script>
 <!-- 도구모음 런처 (samsungda.net) -->
 <style>
-.da-launcher{position:fixed;top:14px;right:16px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;height:29px;padding:0 9px;border:1.5px solid #D3D9D6;border-radius:7px;background:rgba(255,255,255,.92);-webkit-backdrop-filter:saturate(180%) blur(6px);backdrop-filter:saturate(180%) blur(6px);text-decoration:none;color:#17222D;font-family:'Pretendard',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:600;line-height:1;transition:.15s}
+.da-launcher{position:fixed;top:14px;right:16px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;height:29px;padding:0 9px;border:1.5px solid #D3D9D6;border-radius:0;background:rgba(255,255,255,.92);-webkit-backdrop-filter:saturate(180%) blur(6px);backdrop-filter:saturate(180%) blur(6px);text-decoration:none;color:#17222D;font-family:'Pretendard',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:600;line-height:1;transition:.15s}
 .da-launcher:hover{border-color:#46647E;box-shadow:0 4px 18px rgba(70,100,126,.12)}
 .da-launcher .da-gi{display:grid;grid-template-columns:1fr 1fr;gap:2px;width:18px;height:18px}
-.da-launcher .da-gi i{background:#5C6B79;border-radius:1px;transition:.15s}
+.da-launcher .da-gi i{background:#5C6B79;border-radius:0;transition:.15s}
 .da-launcher:hover .da-gi i{background:#46647E}
 </style>
 <a class="da-launcher" href="https://samsungda.net" title="도구모음 열기">
