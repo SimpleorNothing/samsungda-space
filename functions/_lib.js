@@ -228,6 +228,7 @@ textarea.input:focus{border-color:var(--brand)}
 .note .cl:hover{background:rgba(70,100,126,.04)}
 .note .cl-row{display:flex;align-items:flex-start;gap:8px;padding:3px 0;font-size:15px;line-height:1.6}
 .note .cl-row input{width:16px;height:16px;margin-top:3px;accent-color:var(--brand);cursor:pointer;flex:none}
+.note .cl-row input.ghost-box{opacity:0}
 .note .cl-row span{white-space:pre-wrap;word-break:break-word;cursor:pointer}
 .note .cl-row.done span{color:var(--muted);text-decoration:line-through}
 .note .cl-text{font-size:15px;line-height:1.75;white-space:pre-wrap;word-break:break-word;cursor:pointer}
@@ -883,6 +884,9 @@ function notesSnippet() {
         row.className = 'cl-row' + (/x/i.test(m[1] || '') ? ' done' : '');
         var cb = document.createElement('input'); cb.type = 'checkbox';
         cb.checked = /x/i.test(m[1] || '');
+        // 항목 텍스트가 공백으로 시작하면(들여쓴 하위 항목) 체크박스 테두리를 투명 처리 —
+        // 클릭·체크 동작은 그대로 유지하고 시각적으로만 숨긴다.
+        if(/^\\s/.test(m[2] || '')) cb.className = 'ghost-box';
         cb.addEventListener('change', function(){ toggleChecklistLine(n, idx, cb, row); });
         var label = document.createElement('span'); label.textContent = m[2];
         label.addEventListener('click', function(e){ e.stopPropagation(); cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
