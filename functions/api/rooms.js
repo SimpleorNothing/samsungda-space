@@ -213,7 +213,7 @@ export async function onRequestPatch(context) {
   }
   await writeIndex(context.env, index);
 
-  // 비공개 방이면 새 이름 기준 인증 쿠키를 발급해 이름 변경 직후에도 재입력 없이 이어서 쓰게 함
+  // 비공개 방이면 새 이름의 인증 쿠키를 발급해, 바꾼 사람이 다시 비밀번호를 입력하지 않게 함
   const headers = (meta && meta.passwordHash)
     ? { 'set-cookie': authCookieHeader(newId, meta.passwordHash) }
     : null;
