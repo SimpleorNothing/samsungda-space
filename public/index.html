@@ -73,7 +73,7 @@ section{margin-bottom:40px}
 .card.tinted{background:color-mix(in srgb, var(--c) 6%, #fff);border-color:color-mix(in srgb, var(--c) 30%, #fff)}
 .card.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 .card.tinted h3{color:var(--c)}
-.card.tinted .badge.used{background:color-mix(in srgb, var(--c) 10%, #fff);color:var(--c)}
+.card.tinted .badge.used{color:var(--c)}
 .card.tinted .updated,.card.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card h3{font-size:17px;font-weight:700;display:flex;align-items:center}
 .card h3 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px;flex:none}
@@ -83,14 +83,15 @@ section{margin-bottom:40px}
 .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .badge{
   display:inline-block;font-size:15px;font-weight:600;
-  padding:3px 9px;border-radius:0;
+  padding:2px 8px;border-radius:0;
+  background:transparent;border:1px solid currentColor;
 }
-.badge.free{background:#E7EAE6;color:var(--muted)}
-.badge.used{background:rgba(70,100,126,.08);color:var(--brand)}
-.badge.open{background:#E7EAE6;color:var(--muted)}
-.badge.lock{background:#F5E4E2;color:#B02E24}
-.badge.exp{background:#E7EAE6;color:var(--muted)}
-.badge.expired{background:#F5E4E2;color:#B02E24}
+.badge.free{color:var(--muted)}
+.badge.used{color:var(--brand)}
+.badge.open{color:var(--muted)}
+.badge.lock{color:#B02E24}
+.badge.exp{color:var(--muted)}
+.badge.expired{color:#B02E24}
 .updated{
   font-size:15px;color:var(--muted);
   border-top:1px solid var(--border);
@@ -109,7 +110,7 @@ section{margin-bottom:40px}
 .card.off p{color:#9AA6A0}
 .card.off .badge.free,
 .card.off .badge.open,
-.card.off .badge.exp{background:#E1E4DF;color:#9AA6A0}
+.card.off .badge.exp{color:#9AA6A0}
 .card.off .updated,.card.off .mgr{border-color:#D9DDD7}
 .card.off:hover{border-color:#9AA6A0;box-shadow:0 4px 18px rgba(92,107,121,.10)}
 .card.off:hover h3::after{opacity:.55}
@@ -122,7 +123,7 @@ section{margin-bottom:40px}
   box-shadow:0 4px 22px rgba(169,121,15,.16);
 }
 .card.on h3{color:#6B4D0A}
-.card.on .badge.used{background:#F4E6C7;color:#6B4D0A}
+.card.on .badge.used{color:#6B4D0A}
 .card.on .updated{border-color:#F4EAD5}
 .card.on .mgr{border-color:#F4EAD5}
 .card.on:hover{border-color:#C79A2E;box-shadow:0 6px 26px rgba(169,121,15,.24)}
@@ -134,7 +135,7 @@ section{margin-bottom:40px}
   box-shadow:0 4px 22px color-mix(in srgb, var(--c) 18%, transparent);
 }
 .card.on.tinted h3{color:var(--c)}
-.card.on.tinted .badge.used{background:color-mix(in srgb, var(--c) 12%, #fff);color:var(--c)}
+.card.on.tinted .badge.used{color:var(--c)}
 .card.on.tinted .updated,.card.on.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.on.tinted:hover{border-color:var(--c);box-shadow:0 6px 26px color-mix(in srgb, var(--c) 26%, transparent)}
 .card.off.tinted{
@@ -146,7 +147,7 @@ section{margin-bottom:40px}
 .card.off.tinted p{color:color-mix(in srgb, var(--c) 45%, #5C6B79)}
 .card.off.tinted .badge.free,
 .card.off.tinted .badge.open,
-.card.off.tinted .badge.exp{background:color-mix(in srgb, var(--c) 12%, #fff);color:color-mix(in srgb, var(--c) 65%, #5C6B79)}
+.card.off.tinted .badge.exp{color:color-mix(in srgb, var(--c) 65%, #5C6B79)}
 .card.off.tinted .updated,.card.off.tinted .mgr{border-color:color-mix(in srgb, var(--c) 20%, #fff)}
 .card.off.tinted:hover{border-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb, var(--c) 14%, transparent)}
 
