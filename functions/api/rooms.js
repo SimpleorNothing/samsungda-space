@@ -12,7 +12,7 @@
 //                     비공개 방은 x-room-password 헤더 또는 인증 쿠키 필요
 import {
   ROOMS, allRooms, isValidRoomId, isEditorRoom, roomExists, readIndex, writeIndex,
-  isAuthorized, authCookieHeader, todayKST, json,
+  isAuthorized, authCookieHeader, pageExists, todayKST, json,
 } from '../_lib.js';
 
 // 배치(index.layout)에서 구분선을 나타내는 표식 — 방 이름 규칙상 '|'는 이름으로 쓸 수 없어 안전
@@ -59,9 +59,9 @@ export async function onRequestGet(context) {
   const heads = await Promise.all(ids.map(function (id) {
     return context.env.SPACE.head('rooms/' + id + '/notes.json');
   }));
-  // 게시 여부 — page.html 실존을 진실로 삼는다(meta.published 플래그 드리프트 무시)
+  // 게시 여부 — page.html·pages/ 실존을 진실로 삼는다(meta.published 플래그 드리프트 무시)
   const pageHeads = await Promise.all(ids.map(function (id) {
-    return context.env.SPACE.head('rooms/' + id + '/page.html');
+    return pageExists(context.env, id);
   }));
 
   const rooms = ids.map(function (id, i) {
@@ -213,7 +213,7 @@ export async function onRequestPatch(context) {
   }
   await writeIndex(context.env, index);
 
-  // 비공개 방이면 새 이름의 인증 쿠키를 발급해, 바꾼 사람이 다시 비밀번호를 입력하지 않게 함
+  // 비공개 방이면 새 이름 기준 인증 쿠키를 발급해 이름 변경 직후에도 재입력 없이 이어서 쓰게 함
   const headers = (meta && meta.passwordHash)
     ? { 'set-cookie': authCookieHeader(newId, meta.passwordHash) }
     : null;
@@ -236,8 +236,7 @@ export async function onRequestDelete(context) {
     return json({ error: 'unauthorized' }, 401);
   }
 
-  // 방 데이터 전체 삭제 (rooms/{id}/ 하위 — page.html, source.md, notes.json, files/*)
-  // 블라인드 보이스는 전역 피드(bamboo.json)라 영향 없음
+  // 방 데이터 전체 삭제 (rooms/{id}/ 하위 — page.html, pages/*, source.md, notes.json, files/*)
   let cursor;
   do {
     const list = await context.env.SPACE.list({ prefix: 'rooms/' + id + '/', cursor: cursor });
