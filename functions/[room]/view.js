@@ -1,4 +1,5 @@
-// GET /A-1/view — 업로드된 HTML 원본 (뷰어 iframe 소스 겸 전체화면 링크)
+// GET /A-1/view — 게시된 HTML 원본 (뷰어 iframe 소스 겸 전체화면 링크)
+// ?p={pid}로 추가 페이지(pages/{pid}.html)를 지정할 수 있다. 없거나 'main'이면 page.html.
 // 열람 비밀번호가 설정된 방은 인증 쿠키 없이는 방 페이지로 돌려보냄.
 import { isValidRoomId, roomExists, readIndex, isAuthorized, escapeHtml } from '../_lib.js';
 
@@ -27,6 +28,8 @@ function missingPage(id) {
 </html>`;
 }
 
+const PID_RE = /^p[a-z0-9]{4,24}$/;
+
 export async function onRequestGet(context) {
   const id = context.params.room;
   if (!isValidRoomId(id)) return new Response('Not Found', { status: 404 });
@@ -43,9 +46,17 @@ export async function onRequestGet(context) {
     return Response.redirect(roomUrl, 302);
   }
 
-  // page.html이 있으면 meta 유무와 상관없이 그대로 제공한다. (meta가 없는데 방으로
-  // 리다이렉트하면, 방 페이지가 page.html 실존으로 뷰어를 다시 렌더해 재귀가 되살아난다.)
-  const obj = await context.env.SPACE.get('rooms/' + id + '/page.html');
+  // 페이지 선택 — ?p={pid}는 추가 페이지, 없거나 'main'이면 첫 페이지(page.html)
+  const pid = new URL(context.request.url).searchParams.get('p') || '';
+  let key = 'rooms/' + id + '/page.html';
+  if (pid && pid !== 'main') {
+    if (!PID_RE.test(pid)) return new Response('Not Found', { status: 404 });
+    key = 'rooms/' + id + '/pages/' + pid + '.html';
+  }
+
+  // 페이지가 있으면 meta 유무와 상관없이 그대로 제공한다. (meta가 없는데 방으로
+  // 리다이렉트하면, 방 페이지가 페이지 실존으로 뷰어를 다시 렌더해 재귀가 되살아난다.)
+  const obj = await context.env.SPACE.get(key);
   // 페이지가 없으면 방 페이지로 리다이렉트하면 안 된다 — 방 페이지가 이 뷰어를
   // <iframe src=".../view">로 다시 품기 때문에 무한 재귀 중첩이 생긴다(삭제한
   // 내용이 다시 살아나는 것처럼 보이는 원인). 깔끔한 빈 안내 페이지를 돌려준다.
