@@ -135,6 +135,50 @@ export async function listPages(env, room, meta) {
   return pages;
 }
 
+// 메모·파일 읽기
+async function readNotes(env, room) {
+  const obj = await env.SPACE.get('rooms/' + room + '/notes.json');
+  if (!obj) return { items: [] };
+  try { return JSON.parse(await obj.text()); } catch (e) { return { items: [] }; }
+}
+
+// 가장 최근 활동 탭 결정 — 메모/웹페이지 중 최근 업데이트가 있는 탭을 기본으로
+export async function getDefaultTab(env, room, pages) {
+  // 웹페이지의 최근 업데이트 — 모든 페이지 중 가장 최신 updatedAt 찾기
+  let latestPageTime = '';
+  if (pages && pages.length > 0) {
+    pages.forEach(function(page) {
+      const pageTime = page.updatedAt || '';
+      if (pageTime > latestPageTime) {
+        latestPageTime = pageTime;
+      }
+    });
+  }
+
+  // 메모의 최근 업데이트 — 첫 메모가 최신 (notes.json에 생성 역순으로 저장)
+  let latestNoteTime = '';
+  try {
+    const notesData = await readNotes(env, room);
+    if (notesData.items && notesData.items.length > 0) {
+      const firstNote = notesData.items[0];
+      latestNoteTime = firstNote.editedAt || firstNote.createdAt || '';
+    }
+  } catch (e) {
+    // 메모를 읽을 수 없으면 무시하고 계속
+  }
+
+  // 최근 활동 비교 — 더 최신인 탭을 기본으로 설정
+  // 둘 다 있으면 타임스탬프 비교, 웹페이지만 있으면 web, 메모만 있으면 notes
+  if (latestPageTime && latestNoteTime) {
+    return latestNoteTime > latestPageTime ? 'notes' : 'web';
+  } else if (latestNoteTime) {
+    return 'notes';
+  } else if (latestPageTime) {
+    return 'web';
+  }
+  return 'notes'; // 둘 다 없으면 기본값
+}
+
 // ---------- 인증 (열람 비밀번호) ----------
 // 비밀번호 검증 성공 시 space_auth_{room} 쿠키에 해시를 저장하고,
 // 이후 요청은 쿠키 해시 == 저장 해시로 판정. 교체/삭제도 동일 권한.
@@ -347,15 +391,15 @@ const COLORS = [
 // 잠김: 비밀번호 게이트 / 그 외: 2탭 워크스페이스 (메모·파일 / 웹페이지 — 여러 페이지 탭 지원)
 // 헤더 우측: 공개/비공개 배지 + 방 설정(공개 범위·사용기한·테마 색) 버튼
 
-export function roomPage(room, meta, authorized, pages) {
+export async function roomPage(room, meta, authorized, pages, env) {
   // 게시 여부는 R2 페이지 실존(listPages 결과)을 진실로 삼는다. index.json의 meta.published가
   // 어긋나 있어도(예: 삭제 후 플래그가 남음) 실제 파일이 없으면 빈방으로 렌더해
   // 뷰어가 방 페이지를 재귀로 끌어안는 무한 중첩을 원천 차단한다.
   pages = pages || [];
   const used = pages.length > 0;
   const first = used ? pages[0] : null;
-  // 게시되면 웹페이지 탭, 미게시면 메모·파일 탭을 기본 활성 탭으로.
-  const defaultTab = used ? 'web' : 'notes';
+  // 가장 최근 활동이 있는 탭을 기본 활성 탭으로 설정
+  const defaultTab = (env && authorized) ? await getDefaultTab(env, room, used ? pages : []) : (used ? 'web' : 'notes');
   const priv = !!(meta && meta.passwordHash);
   const locked = priv && !authorized;
   const editor = isEditorRoom(room);
