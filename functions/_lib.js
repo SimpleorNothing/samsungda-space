@@ -241,7 +241,7 @@ textarea.input:focus{border-color:var(--brand)}
 .preview-label{font-size:15px;font-weight:600;color:var(--muted);margin-top:16px}
 .preview{background:#fff;border:1.5px solid var(--border);border-radius:0;padding:22px;margin-top:8px;
   min-height:100px;overflow:auto;}
-.tabbar{display:flex;gap:4px;border-bottom:1.5px solid var(--border);margin-top:20px}
+.tabbar{display:flex;gap:4px;border-bottom:1.5px solid var(--border);margin-top:20px;overflow-x:auto}
 .tabbar button{border:none;border-bottom:2px solid transparent;border-radius:0;background:none;
   color:var(--muted);font-size:15px;font-weight:600;padding:10px 14px;margin-bottom:-1.5px;}
 .tabbar button:hover{color:var(--brand)}
@@ -300,16 +300,12 @@ button.mini{font-size:15px;padding:4px 10px;margin-left:auto}
   box-shadow:0 0 0 1.5px var(--border);transition:.15s;}
 .swatches button:hover{box-shadow:0 0 0 2.5px var(--brand);border-color:#fff;color:inherit}
 .swatches button.sel{box-shadow:0 0 0 2.5px var(--text)}
-.pagetabs{display:flex;align-items:flex-end;gap:2px;margin-top:20px;border-bottom:1.5px solid var(--border);overflow-x:auto}
-.pagetabs button{flex:none;border:1.5px solid var(--border);border-bottom:none;border-radius:0;
-  background:#E7EAE6;color:var(--muted);font-size:15px;font-weight:600;padding:8px 14px;
-  max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:-1.5px}
-.pagetabs button:hover{color:var(--brand)}
-.pagetabs button.active{background:var(--surface);color:var(--text);border-bottom:1.5px solid var(--surface)}
-.pagetabs button.addpage{font-weight:700;padding:8px 12px;background:transparent;border-style:dashed}
+/* 게시된 웹페이지들은 메인 탭바에 페이지별 탭으로 나타난다 (JS가 렌더) */
+.tabbar button.webtab{flex:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tabbar button.addpage-bar{flex:none;border:1.5px solid var(--border);border-bottom:none;border-radius:0;
   background:transparent;color:var(--muted);font-size:15px;font-weight:600;padding:8px 14px;
   margin-bottom:-1.5px;border-style:dashed}
+.tabbar button.addpage-bar.active{color:var(--brand);border-color:var(--brand)}
 `;
 
 // 마크다운 본문 타이포그래피 — 미리보기(.preview)와 게시 문서가 공유
@@ -442,7 +438,6 @@ export function roomPage(room, meta, authorized, pages) {
 
       <div class="tabbar">
         <button data-tab="notes"${defaultTab === 'notes' ? ' class="active"' : ''}>메모·파일</button>
-        <button data-tab="web"${defaultTab === 'web' ? ' class="active"' : ''}>웹페이지</button>
         <button id="addWebPageBtnBar" type="button" class="addpage-bar">웹페이지 +</button>
       </div>
 
@@ -548,9 +543,8 @@ function webTabMarkup(room, used, editor) {
   // 탭·뷰어는 클라이언트가 PAGES(서버 주입 목록)로 렌더하고, 조작 버튼은 활성 페이지에 적용된다.
   if (editor) {
     return `
-      <div class="pagetabs" id="pageTabs"></div>
-      <div class="viewer"><iframe id="pageFrame" title="${room}"></iframe></div>
-      <div class="btn-row">
+      <div class="viewer" id="viewerWrap"><iframe id="pageFrame" title="${room}"></iframe></div>
+      <div class="btn-row" id="pageActions">
         <button id="openBtn">전체화면으로 열기</button>
         <button id="dlBtn">HTML 다운로드</button>
         <button id="editBtn">내용 수정</button>
@@ -580,9 +574,8 @@ function webTabMarkup(room, used, editor) {
       </div>`;
   }
   return `
-      <div class="pagetabs" id="pageTabs"></div>
-      <div class="viewer"><iframe id="pageFrame" title="${room}"></iframe></div>
-      <div class="btn-row">
+      <div class="viewer" id="viewerWrap"><iframe id="pageFrame" title="${room}"></iframe></div>
+      <div class="btn-row" id="pageActions">
         <button id="openBtn">전체화면으로 열기</button>
         <button id="dlBtn">HTML 다운로드</button>
         <button id="fileRepBtn">파일로 교체</button>
@@ -1161,45 +1154,57 @@ function notesSnippet() {
 // PAGES(서버 주입 목록)와 msgWeb, flash는 workspaceScript 스코프에 이미 있다.
 function pagesCoreSnippet() {
   return `
-  var pageTabs = document.getElementById('pageTabs');
   var pageFrame = document.getElementById('pageFrame');
   var addSec = document.getElementById('addSec');
+  var viewerWrap = document.getElementById('viewerWrap');
+  var pageActions = document.getElementById('pageActions');
+  var tabbarEl = document.querySelector('.tabbar');
   var cur = PAGES.length ? PAGES[0].id : 'main';
 
   function curPage(){
     for(var i = 0; i < PAGES.length; i++){ if(PAGES[i].id === cur) return PAGES[i]; }
     return null;
   }
-  function pageLabel(p, i){ return p.title ? p.title : ('페이지 ' + (i + 1)); }
+  function pageLabel(p, i){ return p.title ? p.title : (i === 0 ? '웹페이지' : '웹페이지 ' + (i + 1)); }
   function viewUrl(id){
     return '/' + ROOM + '/view' + (id === 'main' ? '' : '?p=' + encodeURIComponent(id));
   }
-  function renderTabs(){
-    pageTabs.innerHTML = '';
+  // 게시된 페이지마다 메인 탭바에 탭을 렌더 — '웹페이지 +' 버튼 앞에 끼워 넣는다.
+  // active: 'page'(현재 페이지 탭) | 'add'(웹페이지 + 버튼) | ''(메모·파일 탭 활성)
+  function renderTabs(active){
+    Array.prototype.forEach.call(tabbarEl.querySelectorAll('button.webtab'), function(b){
+      b.parentNode.removeChild(b);
+    });
     PAGES.forEach(function(p, i){
       var b = document.createElement('button');
       b.type = 'button';
+      b.className = 'webtab' + (active === 'page' && p.id === cur ? ' active' : '');
       b.textContent = pageLabel(p, i);
       b.title = pageLabel(p, i);
-      if(p.id === cur) b.className = 'active';
       b.addEventListener('click', function(){ setPage(p.id); });
-      pageTabs.appendChild(b);
+      tabbarEl.insertBefore(b, addWebPageBtnBar);
     });
-    var add = document.createElement('button');
-    add.type = 'button';
-    add.className = 'addpage';
-    add.textContent = '+';
-    add.title = '새 페이지 추가';
-    add.addEventListener('click', function(){
-      addSec.style.display = addSec.style.display === 'none' ? '' : 'none';
-      flash(msgWeb, '');
-    });
-    pageTabs.appendChild(add);
+    addWebPageBtnBar.className = 'addpage-bar' + (active === 'add' ? ' active' : '');
   }
+  function hideSub(id){ var el = document.getElementById(id); if(el) el.style.display = 'none'; }
   function setPage(id){
     cur = id;
     pageFrame.src = viewUrl(id);
-    renderTabs();
+    showTab('web');
+    addSec.style.display = 'none';
+    viewerWrap.style.display = '';
+    pageActions.style.display = '';
+    hideSub('editSec'); hideSub('srcRepSec');
+    renderTabs('page');
+    flash(msgWeb, '');
+  }
+  function showAddPage(){
+    showTab('web');
+    addSec.style.display = '';
+    viewerWrap.style.display = 'none';
+    pageActions.style.display = 'none';
+    hideSub('editSec'); hideSub('srcRepSec');
+    renderTabs('add');
     flash(msgWeb, '');
   }
   setPage(cur);
@@ -1420,8 +1425,7 @@ function webSnippet(room, meta, editor, used) {
   renderAdd();
 
   document.getElementById('addCancel').addEventListener('click', function(){
-    addSec.style.display = 'none';
-    flash(msgWeb, '');
+    setPage(cur);
   });
 
   addGo.addEventListener('click', function(){
@@ -1530,8 +1534,7 @@ function webSnippet(room, meta, editor, used) {
   });
 
   document.getElementById('addCancel').addEventListener('click', function(){
-    addSec.style.display = 'none';
-    flash(msgWeb, '');
+    setPage(cur);
   });
 
   addGo.addEventListener('click', function(){
@@ -1675,10 +1678,15 @@ function workspaceScript(room, meta, editor, used, priv, pages) {
 
   // ---- 탭 전환 ----
   var tabBtns = document.querySelectorAll('.tabbar button[data-tab]');
+  var addWebPageBtnBar = document.getElementById('addWebPageBtnBar');
   function showTab(name){
     tabBtns.forEach(function(b){
       b.className = b.getAttribute('data-tab') === name ? 'active' : '';
     });
+    if(name !== 'web'){
+      document.querySelectorAll('.tabbar button.webtab').forEach(function(b){ b.classList.remove('active'); });
+      addWebPageBtnBar.classList.remove('active');
+    }
     ['notes', 'web'].forEach(function(n){
       document.getElementById('tab-' + n).className = 'tabpanel' + (n === name ? ' active' : '');
     });
@@ -1686,15 +1694,13 @@ function workspaceScript(room, meta, editor, used, priv, pages) {
   tabBtns.forEach(function(b){
     b.addEventListener('click', function(){ showTab(b.getAttribute('data-tab')); });
   });
-  var addWebPageBtnBar = document.getElementById('addWebPageBtnBar');
-  if(addWebPageBtnBar){
-    addWebPageBtnBar.addEventListener('click', function(){
-      showTab('web');
-      // 게시중인 방에서만 새 페이지 추가 섹션이 있다 — 미게시 방은 웹페이지 탭 자체가 게시 폼
-      var sec = document.getElementById('addSec');
-      if(sec) sec.style.display = '';
-    });
-  }
+  addWebPageBtnBar.addEventListener('click', function(){
+    // 게시중인 방: 새 페이지 추가 폼(파일 업로드/소스 입력)으로 전환.
+    // 미게시 방: 웹페이지 탭 자체가 게시 폼이므로 탭만 전환한다.
+    if(typeof showAddPage === 'function'){ showAddPage(); return; }
+    showTab('web');
+    addWebPageBtnBar.classList.add('active');
+  });
   showTab('${used ? 'web' : 'notes'}');
 
   // ---- 방 설정 ----
