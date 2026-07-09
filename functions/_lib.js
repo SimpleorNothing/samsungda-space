@@ -241,7 +241,7 @@ textarea.input:focus{border-color:var(--brand)}
 .preview-label{font-size:15px;font-weight:600;color:var(--muted);margin-top:16px}
 .preview{background:#fff;border:1.5px solid var(--border);border-radius:0;padding:22px;margin-top:8px;
   min-height:100px;overflow:auto;}
-.tabbar{display:flex;gap:4px;border-bottom:1.5px solid var(--border);margin-top:20px;overflow-x:auto}
+.tabbar{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1.5px solid var(--border);margin-top:20px}
 .tabbar button{border:none;border-bottom:2px solid transparent;border-radius:0;background:none;
   color:var(--muted);font-size:15px;font-weight:600;padding:10px 14px;margin-bottom:-1.5px;}
 .tabbar button:hover{color:var(--brand)}
@@ -438,6 +438,7 @@ export function roomPage(room, meta, authorized, pages) {
 
       <div class="tabbar">
         <button data-tab="notes"${defaultTab === 'notes' ? ' class="active"' : ''}>메모·파일</button>
+        ${used ? '' : '<button data-tab="web">웹페이지</button>'}
         <button id="addWebPageBtnBar" type="button" class="addpage-bar">웹페이지 +</button>
       </div>
 
@@ -1696,10 +1697,9 @@ function workspaceScript(room, meta, editor, used, priv, pages) {
   });
   addWebPageBtnBar.addEventListener('click', function(){
     // 게시중인 방: 새 페이지 추가 폼(파일 업로드/소스 입력)으로 전환.
-    // 미게시 방: 웹페이지 탭 자체가 게시 폼이므로 탭만 전환한다.
+    // 미게시 방: 웹페이지 탭 자체가 게시 폼이므로 탭만 전환한다 ('웹페이지' 탭이 active).
     if(typeof showAddPage === 'function'){ showAddPage(); return; }
     showTab('web');
-    addWebPageBtnBar.classList.add('active');
   });
   showTab('${used ? 'web' : 'notes'}');
 
