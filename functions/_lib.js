@@ -304,7 +304,7 @@ button.mini{font-size:15px;padding:4px 10px;margin-left:auto}
 .tabbar button.webtab{flex:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tabbar button.addpage-bar{flex:none;border:1.5px solid var(--border);border-bottom:none;border-radius:0;
   background:transparent;color:var(--muted);font-size:15px;font-weight:600;padding:8px 14px;
-  margin-bottom:-1.5px;border-style:dashed}
+  margin-bottom:-1.5px}
 .tabbar button.addpage-bar.active{color:var(--brand);border-color:var(--brand)}
 `;
 
@@ -1233,8 +1233,8 @@ function pubFormSnippet() {
     if(doc && doc.trim()){
       // 컨테이너를 먼저 보이게 한 뒤 srcdoc을 넣어야, display:none 상태에서
       // srcdoc이 파싱되지 않아 미리보기가 빈 화면으로 남는 문제를 피한다.
-      pvLabel.style.display = '';
-      pvWrap.style.display = '';
+      pvLabel.style.display = 'block';
+      pvWrap.style.display = 'block';
       if(pvFrame.srcdoc !== doc) pvFrame.srcdoc = doc;
     } else {
       pvFrame.srcdoc = '';
