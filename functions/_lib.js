@@ -1322,7 +1322,20 @@ function pubFormSnippet() {
       if(r.ok){
         r.json().then(function(data){
           if(data.id && typeof setPage === 'function'){
-            setPage(data.id);
+            fetch('/api/room/' + ROOM + '/pages').then(function(pr){
+              if(pr.ok){
+                pr.json().then(function(pdata){
+                  if(pdata.pages && Array.isArray(pdata.pages)){
+                    PAGES = pdata.pages;
+                  }
+                  setPage(data.id);
+                });
+              } else {
+                setPage(data.id);
+              }
+            }).catch(function(){
+              setPage(data.id);
+            });
           } else {
             location.reload();
           }
