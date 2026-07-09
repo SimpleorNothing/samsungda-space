@@ -514,10 +514,10 @@ section{margin-bottom:40px}
       .sort(function(a, b){ return (b.updated || '').localeCompare(a.updated || ''); });
 
     if(roomsWithUpdate.length > 0){
-      var html = roomsWithUpdate.slice(0, 15).map(function(r){
+      var roomHtml = roomsWithUpdate.slice(0, 15).map(function(r){
         return '<div class="room-update-item"><span class="room-update-name">' + esc(r.id) + '</span><span class="room-update-date">' + esc(r.updated) + '</span></div>';
       }).join('');
-      roomChanges.innerHTML = html;
+      roomChanges.innerHTML = roomHtml;
     } else {
       roomChanges.innerHTML = '<p class="muted" style="font-size:12px;color:#999">수정 기록 없음</p>';
     }
