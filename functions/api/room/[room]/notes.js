@@ -20,9 +20,13 @@ function notesKey(room) {
 }
 
 async function readNotes(env, room) {
-  const obj = await env.SPACE.get(notesKey(room));
-  if (!obj) return { items: [] };
-  try { return JSON.parse(await obj.text()); } catch (e) { return { items: [] }; }
+  try {
+    const obj = await env.SPACE.get(notesKey(room));
+    if (!obj) return { items: [] };
+    return JSON.parse(await obj.text());
+  } catch (e) {
+    return { items: [] };
+  }
 }
 
 async function writeNotes(env, room, data) {
