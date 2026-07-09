@@ -228,6 +228,8 @@ textarea.input:focus{border-color:var(--brand)}
 .note .cl:hover{background:rgba(70,100,126,.04)}
 .note .cl-row{display:flex;align-items:flex-start;gap:8px;padding:3px 0;font-size:15px;line-height:1.6}
 .note .cl-row input{width:16px;height:16px;margin-top:3px;accent-color:var(--brand);cursor:pointer;flex:none}
+.note .cl-row input.ghost-box{opacity:0}
+.note .cl-row.done input.ghost-box{opacity:1}
 .note .cl-row span{white-space:pre-wrap;word-break:break-word;cursor:pointer}
 .note .cl-row.done span{color:var(--muted);text-decoration:line-through}
 .note .cl-text{font-size:15px;line-height:1.75;white-space:pre-wrap;word-break:break-word;cursor:pointer}
