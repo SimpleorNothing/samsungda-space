@@ -615,6 +615,8 @@ function helperSnippet() {
   function readFile(file, cb){
     if(!file) return;
     if(!/\\.html?$/i.test(file.name)){ flash(msgWeb, 'HTML 파일(.html)만 올릴 수 있습니다.', true); return; }
+    var fileSize = file.size / 1024 / 1024;
+    flash(msgWeb, fileSize > 1 ? '파일 읽는 중…' : '');
     var r = new FileReader();
     r.onload = function(){ cb(r.result, file); };
     r.onerror = function(){ flash(msgWeb, '파일을 읽지 못했습니다.', true); };
