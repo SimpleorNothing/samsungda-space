@@ -443,7 +443,7 @@ export function roomPage(room, meta, authorized, pages) {
       <div class="tabbar">
         <button data-tab="notes"${defaultTab === 'notes' ? ' class="active"' : ''}>메모·파일</button>
         <button data-tab="web"${defaultTab === 'web' ? ' class="active"' : ''}>웹페이지</button>
-        <button id="addWebPageBtnBar" type="button" class="addpage-bar" style="display:${used ? '' : 'none'}">+ 웹페이지</button>
+        <button id="addWebPageBtnBar" type="button" class="addpage-bar">+ 웹페이지</button>
       </div>
 
       <div class="tabpanel${defaultTab === 'notes' ? ' active' : ''}" id="tab-notes">
@@ -1690,7 +1690,9 @@ function workspaceScript(room, meta, editor, used, priv, pages) {
   if(addWebPageBtnBar){
     addWebPageBtnBar.addEventListener('click', function(){
       showTab('web');
-      if(addSec) addSec.style.display = '';
+      // 게시중인 방에서만 새 페이지 추가 섹션이 있다 — 미게시 방은 웹페이지 탭 자체가 게시 폼
+      var sec = document.getElementById('addSec');
+      if(sec) sec.style.display = '';
     });
   }
   showTab('${used ? 'web' : 'notes'}');
