@@ -14,5 +14,5 @@ export async function onRequestGet(context) {
   // — meta.published 플래그 드리프트에 영향받지 않음. 잠긴 방은 목록을 노출하지 않는다.
   const pages = authorized ? await listPages(context.env, id, meta) : [];
 
-  return html(roomPage(id, meta, authorized, pages));
+  return html(await roomPage(id, meta, authorized, pages, context.env));
 }
