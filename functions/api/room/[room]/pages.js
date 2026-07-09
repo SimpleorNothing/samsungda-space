@@ -38,6 +38,11 @@ function keys(room, pid) {
 async function parseBody(request) {
   try {
     const body = await request.json();
+    // html이 없으면 title 전용 업데이트 (탭 이름 변경용)
+    if (!body.html) {
+      if (typeof body.title !== 'string') return null;
+      return body;
+    }
     if (typeof body.html !== 'string' || !body.html.trim()) return null;
     if (new TextEncoder().encode(body.html).length > MAX_HTML_BYTES) return null;
     if (body.markdown !== undefined) {
@@ -138,6 +143,30 @@ export async function onRequestPut(context) {
   if (!head) return json({ error: 'not published' }, 404);
 
   const title = String(body.title || '').slice(0, 60);
+
+  // html이 없으면 제목 전용 업데이트 (탭 이름 변경)
+  if (!body.html) {
+    if (pid === 'main') {
+      const meta = g.meta || { passwordHash: null, expiresAt: null };
+      meta.published = true;
+      if (title) meta.title = title;
+      meta.updatedAt = nowKST();
+      g.index.rooms[g.room] = meta;
+      await writeIndex(context.env, g.index);
+    } else {
+      const oldTitle = (head.customMetadata && head.customMetadata.title) || '';
+      await context.env.SPACE.put(k.html, await head.arrayBuffer(), {
+        httpMetadata: { contentType: 'text/html; charset=utf-8' },
+        customMetadata: { title: title ? encodeTitle(title) : oldTitle, updatedat: nowKST() },
+      });
+      if (g.meta) {
+        g.meta.updatedAt = nowKST();
+        g.index.rooms[g.room] = g.meta;
+        await writeIndex(context.env, g.index);
+      }
+    }
+    return json({ ok: true });
+  }
 
   if (pid === 'main') {
     await context.env.SPACE.put(k.html, body.html, {
