@@ -143,7 +143,9 @@ async function readNotes(env, room) {
 }
 
 // 가장 최근 활동 탭 결정 — 메모/웹페이지 중 최근 업데이트가 있는 탭을 기본으로
-export async function getDefaultTab(env, room, pages) {
+// 메모 탭: index.json meta.updatedAt (생성/수정/삭제 모두 반영)
+// 웹페이지 탭: pages의 최신 updatedAt
+export async function getDefaultTab(env, room, pages, meta) {
   // 웹페이지의 최근 업데이트 — 모든 페이지 중 가장 최신 updatedAt 찾기
   let latestPageTime = '';
   if (pages && pages.length > 0) {
@@ -155,20 +157,11 @@ export async function getDefaultTab(env, room, pages) {
     });
   }
 
-  // 메모의 최근 업데이트 — 첫 메모가 최신 (notes.json에 생성 역순으로 저장)
-  let latestNoteTime = '';
-  try {
-    const notesData = await readNotes(env, room);
-    if (notesData.items && notesData.items.length > 0) {
-      const firstNote = notesData.items[0];
-      latestNoteTime = firstNote.editedAt || firstNote.createdAt || '';
-    }
-  } catch (e) {
-    // 메모를 읽을 수 없으면 무시하고 계속
-  }
+  // 메모의 최근 업데이트 — index.json의 updatedAt (메모 생성/수정/삭제 모두 반영)
+  const latestNoteTime = (meta && meta.updatedAt) || '';
 
   // 최근 활동 비교 — 더 최신인 탭을 기본으로 설정
-  // 둘 다 있으면 타임스탬프 비교, 웹페이지만 있으면 web, 메모만 있으면 notes
+  // 둘 다 있으면 타임스탬프 비교, 한쪽만 있으면 해당 탭 선택
   if (latestPageTime && latestNoteTime) {
     return latestNoteTime > latestPageTime ? 'notes' : 'web';
   } else if (latestNoteTime) {
@@ -399,7 +392,7 @@ export async function roomPage(room, meta, authorized, pages, env) {
   const used = pages.length > 0;
   const first = used ? pages[0] : null;
   // 가장 최근 활동이 있는 탭을 기본 활성 탭으로 설정
-  const defaultTab = (env && authorized) ? await getDefaultTab(env, room, used ? pages : []) : (used ? 'web' : 'notes');
+  const defaultTab = (env && authorized) ? await getDefaultTab(env, room, used ? pages : [], meta) : (used ? 'web' : 'notes');
   const priv = !!(meta && meta.passwordHash);
   const locked = priv && !authorized;
   const editor = isEditorRoom(room);
