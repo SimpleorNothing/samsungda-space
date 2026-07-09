@@ -660,9 +660,16 @@ function helperSnippet() {
     var fileSize = file.size / 1024 / 1024;
     flash(msgWeb, fileSize > 1 ? '파일 읽는 중…' : '');
     var r = new FileReader();
-    r.onload = function(){ cb(r.result, file); };
+    r.onload = function(){
+      try {
+        var text = typeof r.result === 'string' ? r.result : new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(r.result));
+        cb(text, file);
+      } catch (e) {
+        flash(msgWeb, '파일 읽기 오류: ' + (e.message || '알 수 없는 오류'), true);
+      }
+    };
     r.onerror = function(){ flash(msgWeb, '파일을 읽지 못했습니다.', true); };
-    r.readAsText(file);
+    r.readAsArrayBuffer(file);
   }`;
 }
 
