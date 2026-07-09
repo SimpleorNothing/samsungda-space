@@ -960,7 +960,8 @@ function notesSnippet() {
     items.forEach(function(n){
       var card = document.createElement('div'); card.className = 'note'; card.id = 'note-' + n.id;
       if(n.title){ var h = document.createElement('h3'); h.textContent = n.title; card.appendChild(h); }
-      if(n.text){ card.appendChild(buildNoteBody(card, n)); }
+      var bodyEl;
+      if(n.text){ bodyEl = buildNoteBody(card, n); card.appendChild(bodyEl); }
       if(n.files && n.files.length){
         // 이미지 첨부는 썸네일로, 그 외 파일은 기존 링크 칩으로 표시
         var imgs = document.createElement('div'); imgs.className = 'imgs';
@@ -995,6 +996,10 @@ function notesSnippet() {
         var copyBtn = document.createElement('button'); copyBtn.className = 'mini'; copyBtn.textContent = '텍스트 복사';
         copyBtn.addEventListener('click', function(){ copyText(n.text, copyBtn); });
         actions.appendChild(copyBtn);
+
+        var editBtn = document.createElement('button'); editBtn.className = 'mini'; editBtn.textContent = '수정';
+        editBtn.addEventListener('click', function(){ startEditNote(card, n, bodyEl); });
+        actions.appendChild(editBtn);
       }
       if(n.files && n.files.length){
         var saveBtn = document.createElement('button'); saveBtn.className = 'mini'; saveBtn.textContent = '파일 저장';
