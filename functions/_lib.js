@@ -499,6 +499,36 @@ ${editor && !locked ? MARKED_LINK : ''}
 
 // ---------- 웹페이지 탭 마크업 (상태별) ----------
 
+// 웹페이지 게시 폼 — 첫 게시(미게시 방)와 새 페이지 추가(게시 방)가 완전히 동일한 화면을 쓴다.
+// 메모·파일 저장 폼과 같은 흰 패널 안에 파일 업로드/소스 입력 + 표시 이름 + 게시 + 미리보기.
+function pubFormMarkup(hidden) {
+  return `
+      <div class="panel" id="pubSec"${hidden ? ' style="display:none"' : ''}>
+        <h2>웹페이지 게시</h2>
+        <div class="subtabs">
+          <button id="modeFileBtn" type="button" class="active">파일 업로드</button>
+          <button id="modeSrcBtn" type="button">소스 입력</button>
+        </div>
+        <div id="modeFile">
+          <div class="dropzone" id="dz">HTML 파일을 여기에 끌어다 놓거나 클릭하세요</div>
+          <input id="file" type="file" accept=".html,.htm,text/html" hidden>
+        </div>
+        <div id="modeSrc" style="display:none">
+          <textarea id="srcTa" class="md" placeholder="&lt;!DOCTYPE html&gt;… HTML 소스를 붙여넣으세요"></textarea>
+        </div>
+        <div class="field">
+          <label for="title">표시 이름 (선택 — 페이지 탭·방 목록에 노출)</label>
+          <input id="title" type="text" placeholder="Time for a coffee break">
+        </div>
+        <div class="btn-row">
+          <button id="publishBtn" disabled>게시</button>
+          <button id="pubCancel" type="button" style="display:none">취소</button>
+        </div>
+        <div class="preview-label" id="pvLabel" style="display:none">미리보기</div>
+        <div class="viewer" id="pvWrap" style="display:none"><iframe id="pvFrame" sandbox="allow-scripts" title="미리보기"></iframe></div>
+      </div>`;
+}
+
 function webTabMarkup(room, used, editor) {
   if (!used && editor) {
     return `
@@ -520,25 +550,7 @@ function webTabMarkup(room, used, editor) {
       <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>`;
   }
   if (!used) {
-    return `
-      <div class="subtabs">
-        <button id="modeFileBtn" class="active">파일 업로드</button>
-        <button id="modeSrcBtn">소스 입력</button>
-      </div>
-      <div id="modeFile">
-        <div class="dropzone" id="dz">HTML 파일을 여기에 끌어다 놓거나 클릭하세요</div>
-        <input id="file" type="file" accept=".html,.htm,text/html" hidden>
-      </div>
-      <div id="modeSrc" style="display:none">
-        <textarea id="srcTa" class="md" placeholder="&lt;!DOCTYPE html&gt;… HTML 소스를 붙여넣으세요"></textarea>
-      </div>
-      <div class="field">
-        <label for="title">표시 이름 (선택 — 방 목록에 노출)</label>
-        <input id="title" type="text" placeholder="Time for a coffee break">
-      </div>
-      <div class="btn-row"><button id="publishBtn" disabled>게시</button></div>
-      <div class="preview-label" id="pvLabel" style="display:none">미리보기</div>
-      <div class="viewer" id="pvWrap" style="display:none"><iframe id="pvFrame" sandbox="allow-scripts" title="미리보기"></iframe></div>`;
+    return pubFormMarkup(false);
   }
   // 게시중 — 브라우저처럼 페이지 탭 스트립(+ 추가 버튼)으로 여러 페이지를 전환한다.
   // 탭·뷰어는 클라이언트가 PAGES(서버 주입 목록)로 렌더하고, 조작 버튼은 활성 페이지에 적용된다.
@@ -583,35 +595,15 @@ function webTabMarkup(room, used, editor) {
         <button id="srcRepBtn">소스로 교체</button>
         <button class="danger" id="deleteBtn">삭제</button>
       </div>
-      <input id="file" type="file" accept=".html,.htm,text/html" hidden>
+      <input id="repFile" type="file" accept=".html,.htm,text/html" hidden>
       <div id="srcRepSec" style="display:none">
-        <textarea id="srcTa" class="md" placeholder="&lt;!DOCTYPE html&gt;… 교체할 HTML 소스를 붙여넣으세요"></textarea>
+        <textarea id="repSrcTa" class="md" placeholder="&lt;!DOCTYPE html&gt;… 교체할 HTML 소스를 붙여넣으세요"></textarea>
         <div class="btn-row">
           <button id="srcRepGo">교체 게시</button>
           <button id="srcRepCancel">취소</button>
         </div>
       </div>
-      <div id="addSec" style="display:none">
-        <div class="subtabs">
-          <button id="addModeFileBtn" class="active">파일 업로드</button>
-          <button id="addModeSrcBtn">소스 입력</button>
-        </div>
-        <div id="addModeFile">
-          <div class="dropzone" id="addDz">HTML 파일을 여기에 끌어다 놓거나 클릭하세요</div>
-          <input id="addFile" type="file" accept=".html,.htm,text/html" hidden>
-        </div>
-        <div id="addModeSrc" style="display:none">
-          <textarea id="addSrcTa" class="md" placeholder="&lt;!DOCTYPE html&gt;… HTML 소스를 붙여넣으세요"></textarea>
-        </div>
-        <div class="field">
-          <label for="addTitle">표시 이름 (선택 — 페이지 탭에 노출)</label>
-          <input id="addTitle" type="text" placeholder="예: 참고 자료">
-        </div>
-        <div class="btn-row">
-          <button id="addGo" disabled>새 페이지 게시</button>
-          <button id="addCancel">취소</button>
-        </div>
-      </div>`;
+      ${pubFormMarkup(true)}`;
 }
 
 // ---------- 클라이언트 스크립트 ----------
@@ -1101,7 +1093,7 @@ function notesSnippet() {
     linkedNoteShown = true;
     var el = document.getElementById('note-' + id);
     if(!el){ flash(msgNotes, '링크된 메모를 찾을 수 없습니다. 삭제되었을 수 있습니다.', true); return; }
-    showTab('notes');
+    openNotes();
     el.classList.add('linked');
     el.scrollIntoView({ block: 'center' });
   }
@@ -1156,56 +1148,29 @@ function notesSnippet() {
 function pagesCoreSnippet() {
   return `
   var pageFrame = document.getElementById('pageFrame');
-  var addSec = document.getElementById('addSec');
   var viewerWrap = document.getElementById('viewerWrap');
   var pageActions = document.getElementById('pageActions');
-  var tabbarEl = document.querySelector('.tabbar');
   var cur = PAGES.length ? PAGES[0].id : 'main';
 
   function curPage(){
     for(var i = 0; i < PAGES.length; i++){ if(PAGES[i].id === cur) return PAGES[i]; }
     return null;
   }
-  function pageLabel(p, i){ return p.title ? p.title : (i === 0 ? '웹페이지' : '웹페이지 ' + (i + 1)); }
   function viewUrl(id){
     return '/' + ROOM + '/view' + (id === 'main' ? '' : '?p=' + encodeURIComponent(id));
   }
-  // 게시된 페이지마다 메인 탭바에 탭을 렌더 — '웹페이지 +' 버튼 앞에 끼워 넣는다.
-  // active: 'page'(현재 페이지 탭) | 'add'(웹페이지 + 버튼) | ''(메모·파일 탭 활성)
-  function renderTabs(active){
-    Array.prototype.forEach.call(tabbarEl.querySelectorAll('button.webtab'), function(b){
-      b.parentNode.removeChild(b);
-    });
-    PAGES.forEach(function(p, i){
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'webtab' + (active === 'page' && p.id === cur ? ' active' : '');
-      b.textContent = pageLabel(p, i);
-      b.title = pageLabel(p, i);
-      b.addEventListener('click', function(){ setPage(p.id); });
-      tabbarEl.insertBefore(b, addWebPageBtnBar);
-    });
-    addWebPageBtnBar.className = 'addpage-bar' + (active === 'add' ? ' active' : '');
-  }
-  function hideSub(id){ var el = document.getElementById(id); if(el) el.style.display = 'none'; }
   function setPage(id){
+    saveCurrentPub();
     cur = id;
+    mode = 'page'; activeDraft = null;
     pageFrame.src = viewUrl(id);
-    showTab('web');
-    addSec.style.display = 'none';
+    showPanel('web');
+    hideSub('addSec');
+    if(typeof hidePub === 'function') hidePub();
     viewerWrap.style.display = '';
     pageActions.style.display = '';
     hideSub('editSec'); hideSub('srcRepSec');
-    renderTabs('page');
-    flash(msgWeb, '');
-  }
-  function showAddPage(){
-    showTab('web');
-    addSec.style.display = '';
-    viewerWrap.style.display = 'none';
-    pageActions.style.display = 'none';
-    hideSub('editSec'); hideSub('srcRepSec');
-    renderTabs('add');
+    renderBar();
     flash(msgWeb, '');
   }
   setPage(cur);
@@ -1238,6 +1203,124 @@ function pagesCoreSnippet() {
         if(r.ok){ location.reload(); return; }
         flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '삭제 실패 (HTTP ' + r.status + ')', true);
       }).catch(function(e){ flash(msgWeb, '삭제 실패: ' + e.message, true); });
+  });`;
+}
+
+// 웹페이지 게시 폼 스크립트 — 첫 게시(미게시 방)와 새 페이지 추가(드래프트 탭)가 공용.
+// 탭바 쪽(workspaceScript)의 드래프트 로직이 pubSnapshot/pubRestore/showPub/setPubCancel을 호출한다.
+function pubFormSnippet() {
+  return `
+  var dz = document.getElementById('dz');
+  var pubFileInput = document.getElementById('file');
+  var srcTa = document.getElementById('srcTa');
+  var modeFileBtn = document.getElementById('modeFileBtn');
+  var modeSrcBtn = document.getElementById('modeSrcBtn');
+  var modeFile = document.getElementById('modeFile');
+  var modeSrc = document.getElementById('modeSrc');
+  var publishBtn = document.getElementById('publishBtn');
+  var pubCancelBtn = document.getElementById('pubCancel');
+  var titleInput = document.getElementById('title');
+  var pubMode = 'file';
+  var htmlText = null;
+  var pvLabel = document.getElementById('pvLabel');
+  var pvWrap = document.getElementById('pvWrap');
+  var pvFrame = document.getElementById('pvFrame');
+  var pvTimer = null;
+  var DZ_DEFAULT = dz.textContent;
+
+  function renderPreview(){
+    var doc = pubMode === 'file' ? htmlText : srcTa.value;
+    if(doc && doc.trim()){
+      // 컨테이너를 먼저 보이게 한 뒤 srcdoc을 넣어야, display:none 상태에서
+      // srcdoc이 파싱되지 않아 미리보기가 빈 화면으로 남는 문제를 피한다.
+      pvLabel.style.display = '';
+      pvWrap.style.display = '';
+      if(pvFrame.srcdoc !== doc) pvFrame.srcdoc = doc;
+    } else {
+      pvFrame.srcdoc = '';
+      pvLabel.style.display = 'none';
+      pvWrap.style.display = 'none';
+    }
+  }
+  function schedulePreview(){
+    clearTimeout(pvTimer);
+    pvTimer = setTimeout(renderPreview, 400);
+  }
+  function syncPublish(immediate){
+    publishBtn.disabled = pubMode === 'file' ? !htmlText : !srcTa.value.trim();
+    if(immediate){ clearTimeout(pvTimer); renderPreview(); }
+    else { schedulePreview(); }
+  }
+  function setPubMode(m){
+    pubMode = m;
+    modeFile.style.display = m === 'file' ? '' : 'none';
+    modeSrc.style.display = m === 'src' ? '' : 'none';
+    modeFileBtn.className = m === 'file' ? 'active' : '';
+    modeSrcBtn.className = m === 'src' ? 'active' : '';
+    syncPublish(true);
+  }
+  modeFileBtn.addEventListener('click', function(){ setPubMode('file'); });
+  modeSrcBtn.addEventListener('click', function(){ setPubMode('src'); });
+  srcTa.addEventListener('input', function(){ syncPublish(); });
+
+  function onPubFile(text, file){
+    htmlText = text;
+    dz.textContent = file.name + ' (' + Math.round(file.size/1024) + 'KB) 선택됨';
+    syncPublish(true);
+    flash(msgWeb, '');
+  }
+  dz.addEventListener('click', function(){ pubFileInput.click(); });
+  pubFileInput.addEventListener('change', function(){ readFile(pubFileInput.files[0], onPubFile); pubFileInput.value=''; });
+  dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('is-over'); });
+  dz.addEventListener('dragleave', function(){ dz.classList.remove('is-over'); });
+  dz.addEventListener('drop', function(e){
+    e.preventDefault(); dz.classList.remove('is-over');
+    readFile(e.dataTransfer.files && e.dataTransfer.files[0], onPubFile);
+  });
+
+  // 드래프트 탭 전환용 — 폼 입력 상태를 탭별 객체에 저장/복원
+  function pubSnapshot(t){
+    t.mode = pubMode;
+    t.html = htmlText;
+    t.fileLabel = htmlText ? dz.textContent : '';
+    t.src = srcTa.value;
+    t.title = titleInput.value;
+  }
+  function pubRestore(s){
+    htmlText = (s && s.html) || null;
+    dz.textContent = (s && s.fileLabel) || DZ_DEFAULT;
+    srcTa.value = (s && s.src) || '';
+    titleInput.value = (s && s.title) || '';
+    setPubMode((s && s.mode) || 'file');
+  }
+  function setPubCancel(on){ pubCancelBtn.style.display = on ? '' : 'none'; }
+  function showPub(){
+    var v = document.getElementById('viewerWrap'); if(v) v.style.display = 'none';
+    var a = document.getElementById('pageActions'); if(a) a.style.display = 'none';
+    hideSub('editSec'); hideSub('srcRepSec');
+    document.getElementById('pubSec').style.display = '';
+    flash(msgWeb, '');
+  }
+  function hidePub(){ var el = document.getElementById('pubSec'); if(el) el.style.display = 'none'; }
+  pubCancelBtn.addEventListener('click', function(){
+    if(mode === 'draft' && activeDraft){ closeDraft(activeDraft); }
+    flash(msgWeb, '');
+  });
+
+  publishBtn.addEventListener('click', function(){
+    var htmlBody = pubMode === 'file' ? htmlText : srcTa.value;
+    if(!htmlBody || !htmlBody.trim()) return;
+    publishBtn.disabled = true;
+    flash(msgWeb, '게시 중…');
+    fetch('/api/room/' + ROOM + '/pages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ html: htmlBody, title: titleInput.value })
+    }).then(function(r){
+      if(r.ok){ location.reload(); return; }
+      flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '게시 실패 (HTTP ' + r.status + ')', true);
+      publishBtn.disabled = false;
+    }).catch(function(e){ flash(msgWeb, '게시 실패: ' + e.message, true); publishBtn.disabled = false; });
   });`;
 }
 
@@ -1278,88 +1361,7 @@ function webSnippet(room, meta, editor, used) {
   }
 
   if (!used) {
-    return `
-  var dz = document.getElementById('dz');
-  var input = document.getElementById('file');
-  var srcTa = document.getElementById('srcTa');
-  var modeFileBtn = document.getElementById('modeFileBtn');
-  var modeSrcBtn = document.getElementById('modeSrcBtn');
-  var modeFile = document.getElementById('modeFile');
-  var modeSrc = document.getElementById('modeSrc');
-  var publishBtn = document.getElementById('publishBtn');
-  var mode = 'file';
-  var htmlText = null;
-  var pvLabel = document.getElementById('pvLabel');
-  var pvWrap = document.getElementById('pvWrap');
-  var pvFrame = document.getElementById('pvFrame');
-  var pvTimer = null;
-
-  function renderPreview(){
-    var doc = mode === 'file' ? htmlText : srcTa.value;
-    if(doc && doc.trim()){
-      // 컨테이너를 먼저 보이게 한 뒤 srcdoc을 넣어야, display:none 상태에서
-      // srcdoc이 파싱되지 않아 미리보기가 빈 화면으로 남는 문제를 피한다.
-      pvLabel.style.display = '';
-      pvWrap.style.display = '';
-      if(pvFrame.srcdoc !== doc) pvFrame.srcdoc = doc;
-    } else {
-      pvFrame.srcdoc = '';
-      pvLabel.style.display = 'none';
-      pvWrap.style.display = 'none';
-    }
-  }
-  function schedulePreview(){
-    clearTimeout(pvTimer);
-    pvTimer = setTimeout(renderPreview, 400);
-  }
-
-  function syncPublish(immediate){
-    publishBtn.disabled = mode === 'file' ? !htmlText : !srcTa.value.trim();
-    if(immediate){ clearTimeout(pvTimer); renderPreview(); }
-    else { schedulePreview(); }
-  }
-  function setMode(m){
-    mode = m;
-    modeFile.style.display = m === 'file' ? '' : 'none';
-    modeSrc.style.display = m === 'src' ? '' : 'none';
-    modeFileBtn.className = m === 'file' ? 'active' : '';
-    modeSrcBtn.className = m === 'src' ? 'active' : '';
-    syncPublish(true);
-  }
-  modeFileBtn.addEventListener('click', function(){ setMode('file'); });
-  modeSrcBtn.addEventListener('click', function(){ setMode('src'); });
-  srcTa.addEventListener('input', function(){ syncPublish(); });
-
-  function onFile(text, file){
-    htmlText = text;
-    dz.textContent = file.name + ' (' + Math.round(file.size/1024) + 'KB) 선택됨';
-    syncPublish(true);
-    flash(msgWeb, '');
-  }
-  dz.addEventListener('click', function(){ input.click(); });
-  input.addEventListener('change', function(){ readFile(input.files[0], onFile); input.value=''; });
-  dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('is-over'); });
-  dz.addEventListener('dragleave', function(){ dz.classList.remove('is-over'); });
-  dz.addEventListener('drop', function(e){
-    e.preventDefault(); dz.classList.remove('is-over');
-    readFile(e.dataTransfer.files && e.dataTransfer.files[0], onFile);
-  });
-
-  publishBtn.addEventListener('click', function(){
-    var htmlBody = mode === 'file' ? htmlText : srcTa.value;
-    if(!htmlBody || !htmlBody.trim()) return;
-    publishBtn.disabled = true;
-    flash(msgWeb, '게시 중…');
-    fetch('/api/room/' + ROOM + '/pages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ html: htmlBody, title: document.getElementById('title').value })
-    }).then(function(r){
-      if(r.ok){ location.reload(); return; }
-      flash(msgWeb, '게시 실패 (HTTP ' + r.status + ')', true);
-      publishBtn.disabled = false;
-    }).catch(function(e){ flash(msgWeb, '게시 실패: ' + e.message, true); publishBtn.disabled = false; });
-  });`;
+    return pubFormSnippet();
   }
 
   if (editor) {
@@ -1369,6 +1371,17 @@ function webSnippet(room, meta, editor, used) {
   var pv = document.getElementById('pv');
   var editSec = document.getElementById('editSec');
   var saveBtn = document.getElementById('saveBtn');
+  var addSec = document.getElementById('addSec');
+  function showAddPage(){
+    mode = 'add'; activeDraft = null;
+    showPanel('web');
+    addSec.style.display = '';
+    viewerWrap.style.display = 'none';
+    pageActions.style.display = 'none';
+    hideSub('editSec');
+    renderBar();
+    flash(msgWeb, '');
+  }
   ${editorCoreSnippet()}
 
   document.getElementById('editBtn').addEventListener('click', function(){
@@ -1448,13 +1461,13 @@ function webSnippet(room, meta, editor, used) {
 
   return `
   ${pagesCoreSnippet()}
-  var input = document.getElementById('file');
-  var srcTa = document.getElementById('srcTa');
+  var repFileInput = document.getElementById('repFile');
+  var repSrcTa = document.getElementById('repSrcTa');
   var srcRepSec = document.getElementById('srcRepSec');
 
-  document.getElementById('fileRepBtn').addEventListener('click', function(){ input.click(); });
-  input.addEventListener('change', function(){
-    readFile(input.files[0], function(text, file){
+  document.getElementById('fileRepBtn').addEventListener('click', function(){ repFileInput.click(); });
+  repFileInput.addEventListener('change', function(){
+    readFile(repFileInput.files[0], function(text, file){
       if(!window.confirm(file.name + ' 으로 교체할까요? 현재 페이지 내용이 사라집니다.')) return;
       var title = window.prompt('표시 이름 (비우면 기존 이름 유지)') || '';
       flash(msgWeb, '교체 중…');
@@ -1467,7 +1480,7 @@ function webSnippet(room, meta, editor, used) {
         flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '교체 실패 (HTTP ' + r.status + ')', true);
       }).catch(function(e){ flash(msgWeb, '교체 실패: ' + e.message, true); });
     });
-    input.value = '';
+    repFileInput.value = '';
   });
 
   document.getElementById('srcRepBtn').addEventListener('click', function(){
@@ -1478,81 +1491,21 @@ function webSnippet(room, meta, editor, used) {
     flash(msgWeb, '');
   });
   document.getElementById('srcRepGo').addEventListener('click', function(){
-    if(!srcTa.value.trim()){ flash(msgWeb, '교체할 HTML 소스를 입력하세요.', true); return; }
+    if(!repSrcTa.value.trim()){ flash(msgWeb, '교체할 HTML 소스를 입력하세요.', true); return; }
     if(!window.confirm('입력한 소스로 교체할까요? 현재 페이지 내용이 사라집니다.')) return;
     flash(msgWeb, '교체 중…');
     fetch('/api/room/' + ROOM + '/pages?id=' + encodeURIComponent(cur), {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ html: srcTa.value, title: '' })
+      body: JSON.stringify({ html: repSrcTa.value, title: '' })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
       flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '교체 실패 (HTTP ' + r.status + ')', true);
     }).catch(function(e){ flash(msgWeb, '교체 실패: ' + e.message, true); });
   });
 
-  // ---- 새 페이지 추가 (+ 버튼) ----
-  var addFile = document.getElementById('addFile');
-  var addDz = document.getElementById('addDz');
-  var addSrcTa = document.getElementById('addSrcTa');
-  var addModeFileBtn = document.getElementById('addModeFileBtn');
-  var addModeSrcBtn = document.getElementById('addModeSrcBtn');
-  var addModeFile = document.getElementById('addModeFile');
-  var addModeSrc = document.getElementById('addModeSrc');
-  var addGo = document.getElementById('addGo');
-  var addTitle = document.getElementById('addTitle');
-  var addMode = 'file';
-  var addHtml = null;
-
-  function syncAdd(){
-    addGo.disabled = addMode === 'file' ? !addHtml : !addSrcTa.value.trim();
-  }
-  function setAddMode(m){
-    addMode = m;
-    addModeFile.style.display = m === 'file' ? '' : 'none';
-    addModeSrc.style.display = m === 'src' ? '' : 'none';
-    addModeFileBtn.className = m === 'file' ? 'active' : '';
-    addModeSrcBtn.className = m === 'src' ? 'active' : '';
-    syncAdd();
-  }
-  addModeFileBtn.addEventListener('click', function(){ setAddMode('file'); });
-  addModeSrcBtn.addEventListener('click', function(){ setAddMode('src'); });
-  addSrcTa.addEventListener('input', syncAdd);
-
-  function onAddFile(text, file){
-    addHtml = text;
-    addDz.textContent = file.name + ' (' + Math.round(file.size/1024) + 'KB) 선택됨';
-    syncAdd();
-    flash(msgWeb, '');
-  }
-  addDz.addEventListener('click', function(){ addFile.click(); });
-  addFile.addEventListener('change', function(){ readFile(addFile.files[0], onAddFile); addFile.value=''; });
-  addDz.addEventListener('dragover', function(e){ e.preventDefault(); addDz.classList.add('is-over'); });
-  addDz.addEventListener('dragleave', function(){ addDz.classList.remove('is-over'); });
-  addDz.addEventListener('drop', function(e){
-    e.preventDefault(); addDz.classList.remove('is-over');
-    readFile(e.dataTransfer.files && e.dataTransfer.files[0], onAddFile);
-  });
-
-  document.getElementById('addCancel').addEventListener('click', function(){
-    setPage(cur);
-  });
-
-  addGo.addEventListener('click', function(){
-    var htmlBody = addMode === 'file' ? addHtml : addSrcTa.value;
-    if(!htmlBody || !htmlBody.trim()) return;
-    addGo.disabled = true;
-    flash(msgWeb, '게시 중…');
-    fetch('/api/room/' + ROOM + '/pages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ html: htmlBody, title: addTitle.value })
-    }).then(function(r){
-      if(r.ok){ location.reload(); return; }
-      flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '게시 실패 (HTTP ' + r.status + ')', true);
-      addGo.disabled = false;
-    }).catch(function(e){ flash(msgWeb, '게시 실패: ' + e.message, true); addGo.disabled = false; });
-  });`;
+  // ---- 새 페이지 게시 폼 (드래프트 탭 공용) ----
+  ${pubFormSnippet()}`;
 }
 
 // 방 설정 패널 (공개/비공개 전환 + 사용기한 프리셋 + 테마 색)
@@ -1677,31 +1630,96 @@ function workspaceScript(room, meta, editor, used, priv, pages) {
   var msgWeb = document.getElementById('msgWeb');
   ${helperSnippet()}
 
-  // ---- 탭 전환 ----
-  var tabBtns = document.querySelectorAll('.tabbar button[data-tab]');
+  // ---- 탭바: 메모·파일 / 페이지 탭 / 드래프트 탭 / 웹페이지 + ----
+  // '웹페이지 +'를 누르면 그 자리에 '웹페이지 N' 드래프트 탭이 생기고 + 버튼은 끝에 남는다.
+  // 드래프트 탭은 게시 폼(파일 업로드/소스 입력/미리보기)을 열며, 탭마다 입력 상태를 따로 보관한다.
+  var tabbarEl = document.querySelector('.tabbar');
   var addWebPageBtnBar = document.getElementById('addWebPageBtnBar');
-  function showTab(name){
-    tabBtns.forEach(function(b){
-      b.className = b.getAttribute('data-tab') === name ? 'active' : '';
-    });
-    if(name !== 'web'){
-      document.querySelectorAll('.tabbar button.webtab').forEach(function(b){ b.classList.remove('active'); });
-      addWebPageBtnBar.classList.remove('active');
-    }
-    ['notes', 'web'].forEach(function(n){
-      document.getElementById('tab-' + n).className = 'tabpanel' + (n === name ? ' active' : '');
-    });
+  var notesTabBtn = document.querySelector('.tabbar button[data-tab="notes"]');
+  var staticWebBtn = document.querySelector('.tabbar button[data-tab="web"]'); // 미게시 방에만 있음
+  var USED = ${used ? 'true' : 'false'};
+  var mode = 'notes';      // 'notes' | 'web'(미게시 게시 폼 탭) | 'page' | 'draft' | 'add'(에디터 방 추가 폼)
+  var activeDraft = null;
+  var DRAFTS = [];         // '웹페이지 +'로 연 드래프트 탭들 {mode, html, fileLabel, src, title}
+  var STATIC_PUB = { mode: 'file', html: null, fileLabel: '', src: '', title: '' }; // 미게시 '웹페이지' 탭의 폼 상태
+
+  function hideSub(id){ var el = document.getElementById(id); if(el) el.style.display = 'none'; }
+  function showPanel(name){
+    document.getElementById('tab-notes').className = 'tabpanel' + (name === 'notes' ? ' active' : '');
+    document.getElementById('tab-web').className = 'tabpanel' + (name === 'web' ? ' active' : '');
   }
-  tabBtns.forEach(function(b){
-    b.addEventListener('click', function(){ showTab(b.getAttribute('data-tab')); });
-  });
+  function pageLabel(p, i){ return p.title ? p.title : (i === 0 ? '웹페이지' : '웹페이지 ' + (i + 1)); }
+  function draftLabel(i){ return '웹페이지 ' + ((USED ? PAGES.length : 1) + i + 1); }
+  function renderBar(){
+    notesTabBtn.className = mode === 'notes' ? 'active' : '';
+    if(staticWebBtn) staticWebBtn.className = mode === 'web' ? 'active' : '';
+    Array.prototype.forEach.call(tabbarEl.querySelectorAll('button.webtab, button.drafttab'), function(b){
+      b.parentNode.removeChild(b);
+    });
+    PAGES.forEach(function(p, i){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'webtab' + (mode === 'page' && p.id === cur ? ' active' : '');
+      b.textContent = pageLabel(p, i);
+      b.title = pageLabel(p, i);
+      b.addEventListener('click', function(){ setPage(p.id); });
+      tabbarEl.insertBefore(b, addWebPageBtnBar);
+    });
+    DRAFTS.forEach(function(d, i){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'drafttab addpage-bar' + (mode === 'draft' && activeDraft === d ? ' active' : '');
+      b.textContent = draftLabel(i);
+      b.title = draftLabel(i);
+      b.addEventListener('click', function(){ openDraft(d); });
+      tabbarEl.insertBefore(b, addWebPageBtnBar);
+    });
+    addWebPageBtnBar.className = 'addpage-bar' + (mode === 'add' ? ' active' : '');
+  }
+  function saveCurrentPub(){
+    if(typeof pubSnapshot !== 'function') return;
+    if(mode === 'draft' && activeDraft) pubSnapshot(activeDraft);
+    else if(mode === 'web') pubSnapshot(STATIC_PUB);
+  }
+  function openNotes(){
+    saveCurrentPub();
+    mode = 'notes'; activeDraft = null;
+    showPanel('notes');
+    renderBar();
+  }
+  function openStaticWeb(){
+    saveCurrentPub();
+    mode = 'web'; activeDraft = null;
+    showPanel('web');
+    if(typeof pubRestore === 'function'){ showPub(); pubRestore(STATIC_PUB); setPubCancel(false); }
+    renderBar();
+  }
+  function openDraft(d){
+    saveCurrentPub();
+    mode = 'draft'; activeDraft = d;
+    showPanel('web');
+    showPub(); pubRestore(d); setPubCancel(true);
+    renderBar();
+  }
+  function closeDraft(d){
+    var i = DRAFTS.indexOf(d);
+    if(i > -1) DRAFTS.splice(i, 1);
+    activeDraft = null;
+    if(USED){ setPage(cur); } else { openStaticWeb(); }
+  }
+  notesTabBtn.addEventListener('click', openNotes);
+  if(staticWebBtn) staticWebBtn.addEventListener('click', openStaticWeb);
   addWebPageBtnBar.addEventListener('click', function(){
-    // 게시중인 방: 새 페이지 추가 폼(파일 업로드/소스 입력)으로 전환.
-    // 미게시 방: 웹페이지 탭 자체가 게시 폼이므로 탭만 전환한다 ('웹페이지' 탭이 active).
-    if(typeof showAddPage === 'function'){ showAddPage(); return; }
-    showTab('web');
+    if(typeof pubRestore === 'function'){
+      var d = { mode: 'file', html: null, fileLabel: '', src: '', title: '' };
+      DRAFTS.push(d);
+      openDraft(d);
+      return;
+    }
+    if(typeof showAddPage === 'function'){ showAddPage(); return; } // 에디터 방(게시중)
+    openStaticWeb();                                                // 에디터 방(미게시)
   });
-  showTab('${used ? 'web' : 'notes'}');
+  ${used ? '' : 'openNotes();'}
 
   // ---- 방 설정 ----
   ${settingsSnippet(priv, (meta && meta.expiresAt) ? meta.expiresAt : '', (meta && meta.color) ? meta.color : '')}
