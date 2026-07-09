@@ -309,7 +309,7 @@ button.mini{font-size:15px;padding:4px 10px;margin-left:auto}
 .pagetabs button.addpage{font-weight:700;padding:8px 12px;background:transparent;border-style:dashed}
 .tabbar button.addpage-bar{flex:none;border:1.5px solid var(--border);border-bottom:none;border-radius:0;
   background:transparent;color:var(--muted);font-size:15px;font-weight:600;padding:8px 14px;
-  margin-bottom:-1.5px;margin-left:auto;border-style:dashed}
+  margin-bottom:-1.5px;border-style:dashed}
 `;
 
 // 마크다운 본문 타이포그래피 — 미리보기(.preview)와 게시 문서가 공유
@@ -443,7 +443,7 @@ export function roomPage(room, meta, authorized, pages) {
       <div class="tabbar">
         <button data-tab="notes"${defaultTab === 'notes' ? ' class="active"' : ''}>메모·파일</button>
         <button data-tab="web"${defaultTab === 'web' ? ' class="active"' : ''}>웹페이지</button>
-        <button id="addWebPageBtnBar" type="button" class="addpage-bar">+ 웹페이지</button>
+        <button id="addWebPageBtnBar" type="button" class="addpage-bar">웹페이지 +</button>
       </div>
 
       <div class="tabpanel${defaultTab === 'notes' ? ' active' : ''}" id="tab-notes">
