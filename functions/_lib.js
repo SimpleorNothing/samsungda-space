@@ -615,6 +615,8 @@ function helperSnippet() {
   function readFile(file, cb){
     if(!file) return;
     if(!/\\.html?$/i.test(file.name)){ flash(msgWeb, 'HTML 파일(.html)만 올릴 수 있습니다.', true); return; }
+    var fileSize = file.size / 1024 / 1024;
+    flash(msgWeb, fileSize > 1 ? '파일 읽는 중…' : '');
     var r = new FileReader();
     r.onload = function(){ cb(r.result, file); };
     r.onerror = function(){ flash(msgWeb, '파일을 읽지 못했습니다.', true); };
@@ -1317,7 +1319,16 @@ function pubFormSnippet() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ html: htmlBody, title: titleInput.value })
     }).then(function(r){
-      if(r.ok){ location.reload(); return; }
+      if(r.ok){
+        r.json().then(function(data){
+          if(data.id && typeof setPage === 'function'){
+            setPage(data.id);
+          } else {
+            location.reload();
+          }
+        });
+        return;
+      }
       flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '게시 실패 (HTTP ' + r.status + ')', true);
       publishBtn.disabled = false;
     }).catch(function(e){ flash(msgWeb, '게시 실패: ' + e.message, true); publishBtn.disabled = false; });
