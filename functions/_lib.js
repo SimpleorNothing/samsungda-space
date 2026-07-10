@@ -671,6 +671,14 @@ function helperSnippet() {
     };
     r.onerror = function(){ flash(msgWeb, '파일을 읽지 못했습니다.', true); };
     r.readAsText(file);
+  }
+  // WAF가 평문 HTML 본문을 공격으로 오탐해 차단하므로, 게시 본문을 base64로 감싸
+  // 보낸다(서버가 enc:'b64'를 보고 복원). UTF-8(한글) 안전 인코딩.
+  function b64enc(s){
+    var bytes = new TextEncoder().encode(s == null ? '' : String(s));
+    var bin = '';
+    for(var i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
   }`;
 }
 
@@ -1371,7 +1379,7 @@ function pubFormSnippet() {
     fetch('/api/room/' + ROOM + '/pages', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ html: htmlBody, title: titleInput.value })
+      body: JSON.stringify({ enc: 'b64', html: b64enc(htmlBody), title: titleInput.value })
     }).then(function(r){
       if(r.ok){
         r.json().then(function(data){
@@ -1426,8 +1434,9 @@ function webSnippet(room, meta, editor, used) {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        html: buildDoc(title || ROOM, marked.parse(md.value)),
-        markdown: md.value,
+        enc: 'b64',
+        html: b64enc(buildDoc(title || ROOM, marked.parse(md.value))),
+        markdown: b64enc(md.value),
         title: title
       })
     }).then(function(r){
@@ -1492,7 +1501,7 @@ function webSnippet(room, meta, editor, used) {
     fetch('/api/room/' + ROOM + '/pages?id=' + encodeURIComponent(cur), {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ html: buildDoc(docTitle, marked.parse(md.value)), markdown: md.value })
+      body: JSON.stringify({ enc: 'b64', html: b64enc(buildDoc(docTitle, marked.parse(md.value))), markdown: b64enc(md.value) })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
       flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '게시 실패 (HTTP ' + r.status + ')', true);
@@ -1528,7 +1537,7 @@ function webSnippet(room, meta, editor, used) {
     fetch('/api/room/' + ROOM + '/pages', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ html: buildDoc(t || ROOM, marked.parse(addMd.value)), markdown: addMd.value, title: t })
+      body: JSON.stringify({ enc: 'b64', html: b64enc(buildDoc(t || ROOM, marked.parse(addMd.value))), markdown: b64enc(addMd.value), title: t })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
       flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '게시 실패 (HTTP ' + r.status + ')', true);
@@ -1552,7 +1561,7 @@ function webSnippet(room, meta, editor, used) {
       fetch('/api/room/' + ROOM + '/pages?id=' + encodeURIComponent(cur), {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ html: text, title: title })
+        body: JSON.stringify({ enc: 'b64', html: b64enc(text), title: title })
       }).then(function(r){
         if(r.ok){ location.reload(); return; }
         flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '교체 실패 (HTTP ' + r.status + ')', true);
@@ -1575,7 +1584,7 @@ function webSnippet(room, meta, editor, used) {
     fetch('/api/room/' + ROOM + '/pages?id=' + encodeURIComponent(cur), {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ html: repSrcTa.value, title: '' })
+      body: JSON.stringify({ enc: 'b64', html: b64enc(repSrcTa.value), title: '' })
     }).then(function(r){
       if(r.ok){ location.reload(); return; }
       flash(msgWeb, r.status === 401 ? '권한이 없습니다. 새로고침 후 비밀번호를 다시 입력하세요.' : '교체 실패 (HTTP ' + r.status + ')', true);
