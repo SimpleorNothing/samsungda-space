@@ -7,6 +7,21 @@ const MAX_TITLE_CHARS = 60;
 const MAX_FILE_BYTES = 50 * 1024 * 1024; // 파일 1개 50MB
 const MAX_FILES_PER_NOTE = Infinity;
 
+// 코드·HTML이 든 메모를 저장/수정할 때 Cloudflare WAF가 injection으로 오탐해 403으로
+// 차단하는 것을 피하려고, 클라이언트가 enc:'b64'로 UTF-8 Base64 인코딩해 보낸다.
+// 여기서 원문으로 복원한다. enc가 없으면(구버전 호환) 평문 그대로 사용.
+function decodeMaybeB64(text, enc) {
+  if (enc !== 'b64') return text;
+  try {
+    const bin = atob(text);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  } catch (e) {
+    return text;
+  }
+}
+
 function nowKST() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16);
 }
@@ -67,7 +82,7 @@ export async function onRequestPost(context) {
   }
 
   const title = (form.get('title') || '').toString().trim().slice(0, MAX_TITLE_CHARS);
-  const text = (form.get('text') || '').toString().slice(0, MAX_TEXT_CHARS);
+  const text = decodeMaybeB64((form.get('text') || '').toString(), form.get('enc')).slice(0, MAX_TEXT_CHARS);
 
   const entries = form.getAll('files').filter(function (e) {
     return (e instanceof File) && e.size > 0;
@@ -119,7 +134,8 @@ export async function onRequestPut(context) {
   const target = items.find(function (n) { return n.id === id; });
   if (!target) return json({ error: 'not found' }, 404);
 
-  const text = (patch.text !== undefined ? patch.text : (target.text || '')).toString().slice(0, MAX_TEXT_CHARS);
+  const rawText = (patch.text !== undefined ? patch.text : (target.text || '')).toString();
+  const text = decodeMaybeB64(rawText, patch.enc).slice(0, MAX_TEXT_CHARS);
   if (patch.title !== undefined) {
     target.title = patch.title.toString().trim().slice(0, MAX_TITLE_CHARS);
   }

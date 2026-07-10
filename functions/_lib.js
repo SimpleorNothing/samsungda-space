@@ -656,6 +656,14 @@ function webTabMarkup(room, used, editor) {
 function helperSnippet() {
   return `
   function flash(el, t, err){ el.textContent = t || ''; el.className = err ? 'status-msg err' : 'status-msg'; }
+  // 코드·HTML이 든 메모를 저장/수정할 때 Cloudflare WAF가 injection으로 오탐해 403으로
+  // 차단하는 것을 피하려고, 본문을 UTF-8 Base64로 감싸 전송한다(서버가 enc:'b64'면 복원).
+  function encB64(s){
+    var bytes = new TextEncoder().encode(String(s == null ? '' : s));
+    var bin = '';
+    for(var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
   function readFile(file, cb){
     if(!file) return;
     if(!/\\.html?$/i.test(file.name)){ flash(msgWeb, 'HTML 파일(.html)만 올릴 수 있습니다.', true); return; }
@@ -967,7 +975,7 @@ function notesSnippet() {
     fetch('/api/room/' + ROOM + '/notes', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: n.id, text: n.text })
+      body: JSON.stringify({ id: n.id, text: encB64(n.text), enc: 'b64' })
     })
       .then(function(r){
         if(!r.ok){ throw new Error('HTTP ' + r.status); }
@@ -1055,7 +1063,7 @@ function notesSnippet() {
       fetch('/api/room/' + ROOM + '/notes', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: n.id, text: v })
+        body: JSON.stringify({ id: n.id, text: encB64(v), enc: 'b64' })
       })
         .then(function(r){
           if(r.ok){ flash(msgNotes, '수정됨'); loadNotes(); }
@@ -1191,7 +1199,8 @@ function notesSnippet() {
       }).join('\\n');
     }
     var fd = new FormData();
-    fd.append('text', textVal);
+    fd.append('text', encB64(textVal));
+    fd.append('enc', 'b64');
     files.forEach(function(f){ fd.append('files', f); });
     nSave.disabled = true;
     flash(msgNotes, '저장 중…');
