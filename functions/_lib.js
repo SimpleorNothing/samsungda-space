@@ -654,9 +654,17 @@ function webTabMarkup(room, used, editor) {
 function helperSnippet() {
   return `
   function flash(el, t, err){ el.textContent = t || ''; el.className = err ? 'status-msg err' : 'status-msg'; }
+  // 코드·HTML이 든 메모를 저장/수정할 때 Cloudflare WAF가 injection으로 오탐해 403으로
+  // 차단하는 것을 피하려고, 본문을 UTF-8 Base64로 감싸 전송한다(서버가 enc:'b64'면 복원).
+  function encB64(s){
+    var bytes = new TextEncoder().encode(String(s == null ? '' : s));
+    var bin = '';
+    for(var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
   function readFile(file, cb){
     if(!file) return;
-    if(!/\\.html?$/i.test(file.name)){ flash(msgWeb, 'HTML 파일(.html)만 올릴 수 있습니다.', true); return; }
+    if(!/\.html?$/i.test(file.name)){ flash(msgWeb, 'HTML 파일(.html)만 올릴 수 있습니다.', true); return; }
     var fileSize = file.size / 1024 / 1024;
     flash(msgWeb, fileSize > 1 ? '파일 읽는 중…' : '');
     var r = new FileReader();
@@ -711,11 +719,11 @@ function notesSnippet() {
   var DROP_HINT = '이 영역 어디에나 파일을 끌어다 놓거나, 여기를 클릭해 선택하세요 · 캡처 이미지는 Ctrl/⌘+V로 바로 붙여넣기';
 
   // 체크리스트 문법: '[ ] 항목' / '[x] 항목' — 저장된 메모에서 체크박스로 렌더·토글
-  // \\r? : 모바일(CRLF) 줄바꿈으로 저장된 경우 \\r이 줄 끝에 남아 $ 앵커 실패하는 것 방지
-  // ] 뒤 구분자는 정확히 공백 1칸만 소비한다 — \\s*로 전부 삼키면 사용자가 항목을 들여쓰려고
+  // \r? : 모바일(CRLF) 줄바꿈으로 저장된 경우 \r이 줄 끝에 남아 $ 앵커 실패하는 것 방지
+  // ] 뒤 구분자는 정확히 공백 1칸만 소비한다 — \s*로 전부 삼키면 사용자가 항목을 들여쓰려고
   // ] 뒤에 넣은 추가 공백까지 파싱·토글·재저장 때마다 사라져 "편집 중엔 보이는데 저장하면
   // 없어지는" 현상이 생긴다. (span은 white-space:pre-wrap이라 남은 공백이 그대로 보인다)
-  var CL_RE = /^\\s*[\\[［](\\s|x|X)?[\\]］](?: )?(.*?)\\r?$/;
+  var CL_RE = /^\s*[\[［](\s|x|X)?[\]］](?: )?(.*?)\r?$/;
   var TEXT_HINT = '내용을 입력하세요 (위 체크리스트·글머리 기호·번호 매기기 버튼으로 목록 형식을 선택할 수 있어요)';
   var CL_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환)';
   var BULLET_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 글머리 기호 목록으로 변환)';
@@ -728,12 +736,12 @@ function notesSnippet() {
   var fmtBtns = [nCheck, nBullet, nNumber];
 
   function hasChecklistText(text){
-    return (text || '').replace(/\\r\\n/g, '\\n').split('\\n').some(function(l){ return CL_RE.test(l); });
+    return (text || '').replace(/\r\n/g, '\n').split('\n').some(function(l){ return CL_RE.test(l); });
   }
   function addChecklistMarkers(text){
-    return (text || '').replace(/\\r\\n/g, '\\n').split('\\n').map(function(l){
+    return (text || '').replace(/\r\n/g, '\n').split('\n').map(function(l){
       return (l.trim() && !CL_RE.test(l)) ? '[ ] ' + l : l;
-    }).join('\\n');
+    }).join('\n');
   }
   function attachUndoRedo(ta, onChange){
     var undo = [ta.value];
@@ -791,7 +799,7 @@ function notesSnippet() {
   function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b/1024)) + 'KB'; }
 
   // 파일이 이미지인지 판정 — MIME 우선, 없으면 확장자로 (구버전 메모 대비)
-  var IMG_EXT = /\\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif)$/i;
+  var IMG_EXT = /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif)$/i;
   function isImage(f){
     if(f.type && f.type.indexOf('image/') === 0) return true;
     return !!(f.name && IMG_EXT.test(f.name));
@@ -944,18 +952,18 @@ function notesSnippet() {
 
   // 체크박스 토글 -> 해당 줄의 [ ]/[x] 마커를 바꿔 PUT (낙관적 반영, 실패 시 원복)
   function toggleChecklistLine(n, idx, cb, row){
-    var lines = (n.text || '').replace(/\\r\\n/g, '\\n').split('\\n');
+    var lines = (n.text || '').replace(/\r\n/g, '\n').split('\n');
     var m = CL_RE.exec(lines[idx] || '');
     if(!m){ return; }
     var done = cb.checked;
     var prev = n.text;
     lines[idx] = '[' + (done ? 'x' : ' ') + '] ' + m[2];
-    n.text = lines.join('\\n');
+    n.text = lines.join('\n');
     row.classList.toggle('done', done);
     fetch('/api/room/' + ROOM + '/notes', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: n.id, text: n.text })
+      body: JSON.stringify({ id: n.id, text: encB64(n.text), enc: 'b64' })
     })
       .then(function(r){
         if(!r.ok){ throw new Error('HTTP ' + r.status); }
@@ -972,7 +980,7 @@ function notesSnippet() {
   //   - 체크리스트 줄: 체크박스(input) 클릭 → 토글, 항목 텍스트(span) 클릭 → 체크 토글
   //   - 빈 영역(div.cl 배경) 클릭 → 인라인 수정 편집창 열기
   function buildNoteBody(card, n){
-    var lines = (n.text || '').replace(/\\r\\n/g, '\\n').split('\\n');
+    var lines = (n.text || '').replace(/\r\n/g, '\n').split('\n');
     var hasCl = lines.some(function(l){ return CL_RE.test(l); });
     if(!hasCl){
       var p = document.createElement('p'); p.textContent = n.text;
@@ -993,7 +1001,7 @@ function notesSnippet() {
         cb.checked = /x/i.test(m[1] || '');
         // 항목 텍스트가 공백으로 시작하면(들여쓴 하위 항목) 체크박스 테두리를 투명 처리 —
         // 클릭·체크 동작은 그대로 유지하고 시각적으로만 숨긴다.
-        if(/^\\s/.test(m[2] || '')) cb.className = 'ghost-box';
+        if(/^\s/.test(m[2] || '')) cb.className = 'ghost-box';
         cb.addEventListener('change', function(){ toggleChecklistLine(n, idx, cb, row); });
         var label = document.createElement('span'); label.textContent = m[2];
         label.addEventListener('click', function(e){ e.stopPropagation(); cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
@@ -1023,7 +1031,7 @@ function notesSnippet() {
       e.preventDefault();
       var start = ta.selectionStart;
       var end = ta.selectionEnd;
-      var insert = '\\n[ ] ';
+      var insert = '\n[ ] ';
       ta.value = ta.value.slice(0, start) + insert + ta.value.slice(end);
       ta.selectionStart = ta.selectionEnd = start + insert.length;
       editHistory.commit();
@@ -1041,7 +1049,7 @@ function notesSnippet() {
       fetch('/api/room/' + ROOM + '/notes', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: n.id, text: v })
+        body: JSON.stringify({ id: n.id, text: encB64(v), enc: 'b64' })
       })
         .then(function(r){
           if(r.ok){ flash(msgNotes, '수정됨'); loadNotes(); }
@@ -1165,19 +1173,20 @@ function notesSnippet() {
     if(fmtMode === 'checklist'){
       textVal = addChecklistMarkers(textVal);
     } else if(fmtMode === 'bullet'){
-      textVal = textVal.split('\\n').map(function(l){
+      textVal = textVal.split('\n').map(function(l){
         return l.trim() ? '• ' + l.trim() : l;
-      }).join('\\n');
+      }).join('\n');
     } else if(fmtMode === 'number'){
       var seq = 0;
-      textVal = textVal.split('\\n').map(function(l){
+      textVal = textVal.split('\n').map(function(l){
         if(!l.trim()) return l;
         seq++;
         return seq + '. ' + l.trim();
-      }).join('\\n');
+      }).join('\n');
     }
     var fd = new FormData();
-    fd.append('text', textVal);
+    fd.append('text', encB64(textVal));
+    fd.append('enc', 'b64');
     files.forEach(function(f){ fd.append('files', f); });
     nSave.disabled = true;
     flash(msgNotes, '저장 중…');
@@ -1710,7 +1719,7 @@ function settingsSnippet(priv, exp, color) {
 
 // 2탭 워크스페이스 전체 스크립트
 function workspaceScript(room, meta, editor, used, priv, pages) {
-  const pagesJs = JSON.stringify(pages || []).replace(/</g, '\\u003c');
+  const pagesJs = JSON.stringify(pages || []).replace(/</g, '\u003c');
   return `
 (function(){
   var ROOM = '${room}';
