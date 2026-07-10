@@ -305,6 +305,8 @@ textarea.input:focus{border-color:var(--brand)}
 .note .cl-row span{white-space:pre-wrap;word-break:break-word;cursor:pointer}
 .note .cl-row.done span{color:var(--muted);text-decoration:line-through}
 .note .cl-text{font-size:15px;line-height:1.75;white-space:pre-wrap;word-break:break-word;cursor:pointer}
+.note .cl-head{font-size:15px;font-weight:700;line-height:1.6;margin-top:8px;white-space:pre-wrap;word-break:break-word;cursor:pointer}
+.note .cl-row + .cl-head{margin-top:12px}
 .fmt-row button.active{border-color:#E7EAE6;color:var(--text);background:#E7EAE6}
 .note .files{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
 .note .files a{font-size:15px;color:var(--brand);text-decoration:none;background:#fff;
@@ -487,7 +489,7 @@ export async function roomPage(room, meta, authorized, pages, env) {
         <div class="panel">
           <h2>메모·파일 저장</h2>
           <div class="fmt-row" id="fmtRow">
-            <button id="nCheck" type="button" title="한 줄에 한 항목씩 — 저장 시 체크박스 목록으로 변환">☑ 체크리스트</button>
+            <button id="nCheck" type="button" title="한 줄에 한 항목씩 — 저장 시 체크박스 목록으로 변환 · 콜론(:)으로 끝나는 줄은 제목처럼 체크박스 없이 저장">☑ 체크리스트</button>
             <button id="nBullet" type="button" title="한 줄에 한 항목씩 — 저장 시 글머리 기호 목록으로 변환">• 글머리 기호</button>
             <button id="nNumber" type="button" title="한 줄에 한 항목씩 — 저장 시 번호 매기기 목록으로 변환">1. 번호 매기기</button>
           </div>
@@ -716,8 +718,10 @@ function notesSnippet() {
   // ] 뒤에 넣은 추가 공백까지 파싱·토글·재저장 때마다 사라져 "편집 중엔 보이는데 저장하면
   // 없어지는" 현상이 생긴다. (span은 white-space:pre-wrap이라 남은 공백이 그대로 보인다)
   var CL_RE = /^\\s*[\\[［](\\s|x|X)?[\\]］](?: )?(.*?)\\r?$/;
+  // 콜론(:)으로 끝나는 줄은 제목/구분 줄로 보고 체크박스를 붙이지 않는다 (반각 : · 전각 ：)
+  var HEADER_RE = /[:：]\\s*\\r?$/;
   var TEXT_HINT = '내용을 입력하세요 (위 체크리스트·글머리 기호·번호 매기기 버튼으로 목록 형식을 선택할 수 있어요)';
-  var CL_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환)';
+  var CL_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 체크박스 목록으로 변환) · 콜론(:)으로 끝나는 줄은 제목처럼 체크박스 없이 저장됩니다';
   var BULLET_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 글머리 기호 목록으로 변환)';
   var NUMBER_HINT = '한 줄에 한 항목씩 입력하세요 (저장 시 번호 매기기 목록으로 변환)';
   // 서식 모드: 'none' | 'checklist' | 'bullet' | 'number' — 세 버튼은 하나만 켜진다(라디오처럼 동작)
@@ -732,7 +736,7 @@ function notesSnippet() {
   }
   function addChecklistMarkers(text){
     return (text || '').replace(/\\r\\n/g, '\\n').split('\\n').map(function(l){
-      return (l.trim() && !CL_RE.test(l)) ? '[ ] ' + l : l;
+      return (l.trim() && !CL_RE.test(l) && !HEADER_RE.test(l)) ? '[ ] ' + l : l;
     }).join('\\n');
   }
   function attachUndoRedo(ta, onChange){
@@ -1000,7 +1004,9 @@ function notesSnippet() {
         row.appendChild(cb); row.appendChild(label);
         box.appendChild(row);
       } else if(line.trim()){
-        var t = document.createElement('div'); t.className = 'cl-text';
+        // 체크박스가 아닌 줄 — 콜론(:)으로 끝나면 제목(cl-head), 그 외엔 일반 텍스트(cl-text)
+        var t = document.createElement('div');
+        t.className = HEADER_RE.test(line) ? 'cl-head' : 'cl-text';
         t.textContent = line;
         box.appendChild(t);
       }
