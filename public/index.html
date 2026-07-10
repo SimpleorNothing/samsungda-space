@@ -209,7 +209,14 @@ section{margin-bottom:40px}
 .help-badges span{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .help-badges .badge{flex:none}
 
-/* 업데이트 내역 섹션 */
+/* 업데이트 내역 — 컴팩트 트리거 */
+.update-trigger{display:inline-flex;align-items:center;gap:6px;padding:0;border:none;background:transparent;color:var(--muted);font-size:15px;line-height:1;cursor:pointer;font-variant-numeric:tabular-nums}
+.update-trigger:hover{color:var(--text)}
+.update-trigger:focus-visible{outline:2px solid var(--brand,#46647e);outline-offset:3px}
+.update-trigger-date{font-weight:600}
+
+/* 업데이트 내역 섹션 (팝업 내부) */
+.modal .update-history{background:transparent;border:none;padding:0;margin-top:16px}
 .update-history{background:rgba(70,100,126,.03);border:1px solid rgba(70,100,126,.12);padding:20px;margin-top:20px}
 .update-history h3{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.05em;margin-bottom:14px;text-transform:uppercase}
 .update-group{margin-bottom:20px}
@@ -266,14 +273,25 @@ section{margin-bottom:40px}
     <p class="status-msg" id="msg">불러오는 중…</p>
   </section>
 
-  <!-- 업데이트 내역 -->
+  <!-- 업데이트 내역 — 컴팩트 트리거(클릭 시 팝업) -->
   <section id="updateSection" style="display:none">
-    <div class="section-head head-row">
-      <div>
-        <h2>업데이트 내역</h2>
-        <p class="desc">스페이스 UI 변경 및 개별 방 수정 이력</p>
-      </div>
+    <button class="update-trigger" id="updateTrigger" type="button" aria-haspopup="dialog">
+      update : <span class="update-trigger-date" id="updateTriggerDate"></span>
+    </button>
+  </section>
+
+  <footer class="page-updated" id="ub-footer"></footer>
+
+</div>
+
+<!-- 업데이트 내역 모달 -->
+<div class="modal-overlay" id="updateModal" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="updateModalTitle">업데이트 내역</h2>
+      <button class="modal-close" id="updateModalClose" type="button" aria-label="닫기">&times;</button>
     </div>
+    <p class="modal-sub">스페이스 UI 변경 및 개별 방 수정 이력</p>
 
     <div class="update-history">
       <h3>🔄 스페이스 전체 변경</h3>
@@ -286,10 +304,7 @@ section{margin-bottom:40px}
         <p class="muted" style="font-size:12px;color:#999">로드 중…</p>
       </div>
     </div>
-  </section>
-
-  <footer class="page-updated" id="ub-footer"></footer>
-
+  </div>
 </div>
 
 <!-- 사용방법 모달 -->
@@ -522,10 +537,31 @@ section{margin-bottom:40px}
       roomChanges.innerHTML = '<p class="muted" style="font-size:12px;color:#999">수정 기록 없음</p>';
     }
 
+    // 트리거 날짜 — 가장 최근 업데이트 시각(YYYY.MM.DD)
+    var triggerDate = document.getElementById('updateTriggerDate');
+    if(triggerDate){
+      var latest = (badgeData && badgeData.updated_at)
+        || (badgeData && badgeData.log && badgeData.log[0] && badgeData.log[0].at)
+        || (roomsWithUpdate[0] && roomsWithUpdate[0].updated) || '';
+      triggerDate.textContent = fmtUpdateDate(latest);
+    }
+
     // 내용이 있으면 섹션 표시
     if(roomsWithUpdate.length > 0 || (badgeData && badgeData.log && badgeData.log.length > 0)){
       updateSec.style.display = '';
     }
+  }
+
+  // 업데이트 트리거용 날짜 포맷 (YYYY.MM.DD, KST)
+  function fmtUpdateDate(iso){
+    if(!iso) return '';
+    try{
+      var d = new Date(iso);
+      if(isNaN(d)) return String(iso).slice(0,10).replace(/-/g,'.');
+      var p = new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'})
+        .formatToParts(d).reduce(function(o,x){ o[x.type]=x.value; return o; },{});
+      return p.year + '.' + p.month + '.' + p.day;
+    }catch(e){ return String(iso).slice(0,10).replace(/-/g,'.'); }
   }
 
   // 드래그 후 DOM 순서를 읽어 방 순서·구분선 위치를 동기화
@@ -829,8 +865,21 @@ section{margin-bottom:40px}
   helpModal.addEventListener('click', function(e){
     if(e.target === helpModal) closeHelp();
   });
+
+  // 업데이트 내역 팝업
+  var updateModal = document.getElementById('updateModal');
+  var updateTrigger = document.getElementById('updateTrigger');
+  var updateModalClose = document.getElementById('updateModalClose');
+  function openUpdate(){ updateModal.classList.add('open'); }
+  function closeUpdate(){ updateModal.classList.remove('open'); }
+  if(updateTrigger) updateTrigger.addEventListener('click', openUpdate);
+  if(updateModalClose) updateModalClose.addEventListener('click', closeUpdate);
+  if(updateModal) updateModal.addEventListener('click', function(e){
+    if(e.target === updateModal) closeUpdate();
+  });
+
   document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape') closeHelp();
+    if(e.key === 'Escape'){ closeHelp(); closeUpdate(); }
   });
 
   mgrBtn.addEventListener('click', function(){
