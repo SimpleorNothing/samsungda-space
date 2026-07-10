@@ -506,19 +506,6 @@ section{margin-bottom:40px}
 
     if(!updateSec || !siteChanges || !roomChanges) return;
 
-    // 스페이스 전체 변경 — version.json의 로그에서 최근 20개만 표시
-    var badgeData = window.__UPDATE_BADGE_DATA;
-    if(badgeData && badgeData.log && badgeData.log.length > 0){
-      var logs = badgeData.log.slice(0, 20);
-      var html = logs.map(function(item){
-        var date = item.at ? item.at.slice(0, 10) : '';
-        return '<div class="update-item"><span class="date">' + esc(date) + '</span><span class="summary">' + esc(item.summary) + '</span></div>';
-      }).join('');
-      siteChanges.innerHTML = html;
-    } else {
-      siteChanges.innerHTML = '<p class="muted" style="font-size:12px;color:#999">변경 기록 없음</p>';
-    }
-
     // 개별 방 수정 이력 — updated가 있는 방들만 시간순으로 정렬
     var roomsWithUpdate = roomsCache.filter(function(r){ return r.updated; })
       .sort(function(a, b){ return (b.updated || '').localeCompare(a.updated || ''); });
@@ -532,19 +519,82 @@ section{margin-bottom:40px}
       roomChanges.innerHTML = '<p class="muted" style="font-size:12px;color:#999">수정 기록 없음</p>';
     }
 
-    // 트리거 날짜 — 가장 최근 업데이트 시각(YYYY.MM.DD)
-    var triggerDate = document.getElementById('updateTriggerDate');
-    if(triggerDate){
-      var latest = (badgeData && badgeData.updated_at)
-        || (badgeData && badgeData.log && badgeData.log[0] && badgeData.log[0].at)
-        || (roomsWithUpdate[0] && roomsWithUpdate[0].updated) || '';
-      triggerDate.textContent = fmtUpdateDate(latest);
+    // 스페이스 전체 변경 목록 + 트리거 날짜를 주어진 로그로 렌더
+    function applySiteLog(logArr, updatedAt){
+      if(logArr && logArr.length){
+        siteChanges.innerHTML = logArr.slice(0, 20).map(function(item){
+          return '<div class="update-item"><span class="date">' + esc(dateKST(item.at)) + '</span><span class="summary">' + esc(item.summary) + '</span></div>';
+        }).join('');
+      } else {
+        siteChanges.innerHTML = '<p class="muted" style="font-size:12px;color:#999">변경 기록 없음</p>';
+      }
+      var triggerDate = document.getElementById('updateTriggerDate');
+      if(triggerDate){
+        var latest = updatedAt
+          || (logArr && logArr[0] && logArr[0].at)
+          || (roomsWithUpdate[0] && roomsWithUpdate[0].updated) || '';
+        triggerDate.textContent = fmtUpdateDate(latest);
+      }
+      if((logArr && logArr.length) || roomsWithUpdate.length > 0) updateSec.style.display = '';
     }
 
-    // 내용이 있으면 섹션 표시
-    if(roomsWithUpdate.length > 0 || (badgeData && badgeData.log && badgeData.log.length > 0)){
-      updateSec.style.display = '';
-    }
+    // 1) 인라인 데이터(빌드 시점 스냅샷)로 즉시 렌더
+    var badgeData = window.__UPDATE_BADGE_DATA;
+    applySiteLog(badgeData && badgeData.log ? badgeData.log : [], badgeData && badgeData.updated_at);
+
+    // 2) GitHub 커밋 이력으로 최신 상태 갱신 (배포 후 인라인 스냅샷이 오래돼도 최근 변경 반영)
+    fetchGitHubLog(function(log){
+      if(log && log.length) applySiteLog(log, log[0].at);
+    });
+  }
+
+  // GitHub 공개 저장소의 최근 커밋을 브라우저에서 직접 조회 → 배포와 무관하게 최신 이력 확보.
+  // (방문자 IP 기준 무인증 한도 60/h — 사내 도구엔 충분. version.json/인라인이 오래됐을 때의 보강)
+  function fetchGitHubLog(cb){
+    var REPO = 'SimpleorNothing/samsungda-space';
+    try{
+      fetch('https://api.github.com/repos/' + REPO + '/commits?per_page=40', {
+        headers: { accept: 'application/vnd.github+json' }, cache: 'no-store'
+      })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(commits){
+          if(!commits || !commits.length){ cb(null); return; }
+          var log = commits
+            .filter(function(c){ return !(c.parents && c.parents.length > 1); })
+            .map(function(c){
+              return {
+                at: (c.commit && c.commit.author && c.commit.author.date) || '',
+                raw: ((c.commit && c.commit.message) || '').split('\n')[0].trim()
+              };
+            })
+            .filter(function(it){ return it.at && it.raw && !/^(merge|chore)\b/i.test(it.raw) && it.raw.indexOf('[skip-log]') < 0; })
+            .map(function(it){ return { at: it.at, summary: cleanSummary(it.raw) }; })
+            .filter(function(it){ return it.summary; })
+            .slice(0, 40);
+          cb(log.length ? log : null);
+        })
+        .catch(function(){ cb(null); });
+    }catch(e){ cb(null); }
+  }
+
+  // 커밋 첫 줄 → 표시용 요약 (conventional 접두어·PR 꼬리표 제거)
+  function cleanSummary(line){
+    var s = (line || '').trim();
+    s = s.replace(/^[a-z]+(\([^)]*\))?!?:\s*/i, '');
+    s = s.replace(/\s*\(#\d+\)\s*$/, '');
+    return s.trim();
+  }
+
+  // ISO 시각 → KST 기준 YYYY-MM-DD
+  function dateKST(iso){
+    if(!iso) return '';
+    try{
+      var d = new Date(iso);
+      if(isNaN(d)) return String(iso).slice(0,10);
+      var p = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'})
+        .formatToParts(d).reduce(function(o,x){ o[x.type]=x.value; return o; },{});
+      return p.year + '-' + p.month + '-' + p.day;
+    }catch(e){ return String(iso).slice(0,10); }
   }
 
   // 업데이트 트리거용 날짜 포맷 (YYYY.MM.DD, KST)
