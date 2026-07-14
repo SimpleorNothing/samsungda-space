@@ -1,6 +1,6 @@
 // /api/room/:room — 웹페이지 게시(POST)·교체(PUT)·삭제(DELETE)
 // 비공개 방은 인증 쿠키 또는 x-room-password 헤더 필요.
-// 비밀번호·사용기한 설정은 /api/room/:room/settings 로 분리됨 — 여기서는 다루지 않는다.
+// 비밀번호·사용기한 설정은 /api/room/:room/settings 로 분리됨 — 여기서는 다루지 않음.
 import {
   isValidRoomId, roomExists, readIndex, writeIndex,
   isAuthorized, metaIsEmpty, pageExists, json,
@@ -99,7 +99,7 @@ export async function onRequestPut(context) {
   return json({ ok: true });
 }
 
-// 웹페이지 삭제 — 게시 해제. 비공개·사용기한 설정과 메모·대나무숨은 유지.
+// 웹페이지 삭제 — 게시 해제. 비공개·사용기한 설정과 메모·대나무숲은 유지.
 export async function onRequestDelete(context) {
   const room = context.params.room;
   if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
