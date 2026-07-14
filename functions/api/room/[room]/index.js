@@ -5,6 +5,7 @@ import {
   isValidRoomId, roomExists, readIndex, writeIndex,
   isAuthorized, metaIsEmpty, pageExists, json,
 } from '../../../_lib.js';
+import { trashKeys } from '../../../_trash.js';
 
 const MAX_HTML_BYTES = 5 * 1024 * 1024; // 5MB
 const MAX_MD_BYTES = 1 * 1024 * 1024;   // 1MB — 에디터 방 마크다운 원본
@@ -114,8 +115,9 @@ export async function onRequestDelete(context) {
   if (!(await isAuthorized(context.request, room, meta))) return json({ error: 'unauthorized' }, 401);
 
   // page.html이 이미 없어도 무해(멱등). 남아있던 플래그까지 함께 정리해 불일치를 치유한다.
-  await context.env.SPACE.delete('rooms/' + room + '/page.html');
-  await context.env.SPACE.delete('rooms/' + room + '/source.md');
+  // 즉시 파괴 대신 휴지통으로 이동(soft-delete) — 30일 후 Lifecycle 자동정리.
+  await trashKeys(context.env, room, 'page', null, (meta && meta.title) || '',
+    ['rooms/' + room + '/page.html', 'rooms/' + room + '/source.md']);
 
   if (meta) {
     meta.published = false;

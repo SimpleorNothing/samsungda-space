@@ -14,6 +14,7 @@ import {
   ROOMS, allRooms, isValidRoomId, isEditorRoom, roomExists, readIndex, writeIndex,
   isAuthorized, authCookieHeader, pageExists, todayKST, json,
 } from '../_lib.js';
+import { trashRoom } from '../_trash.js';
 
 // 배치(index.layout)에서 구분선을 나타내는 표식 — 방 이름 규칙상 '|'는 이름으로 쓸 수 없어 안전
 const DIVIDER_MARK = '|';
@@ -237,18 +238,11 @@ export async function onRequestDelete(context) {
     return json({ error: 'unauthorized' }, 401);
   }
 
-  // 방 데이터 전체 삭제 (rooms/{id}/ 하위 — page.html, pages/*, source.md, notes.json, files/*)
-  let cursor;
-  do {
-    const list = await context.env.SPACE.list({ prefix: 'rooms/' + id + '/', cursor: cursor });
-    await Promise.all(list.objects.map(function (o) {
-      return context.env.SPACE.delete(o.key);
-    }));
-    cursor = list.truncated ? list.cursor : null;
-  } while (cursor);
+  // 방 데이터 전체를 휴지통(_trash/)으로 이동 — 즉시 파괴 대신 보관(30일 후 Lifecycle 자동정리)
+  const seed = ROOMS.indexOf(id) !== -1;
+  await trashRoom(context.env, id, meta, seed);
 
   delete index.rooms[id];
-  const seed = ROOMS.indexOf(id) !== -1;
   if (mode === 'delete') {
     if (seed) {
       if (!Array.isArray(index.removed)) index.removed = [];
