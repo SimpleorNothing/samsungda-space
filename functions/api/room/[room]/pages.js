@@ -9,6 +9,7 @@ import {
   isValidRoomId, roomExists, readIndex, writeIndex,
   isAuthorized, metaIsEmpty, pageExists, listPages, json,
 } from '../../../_lib.js';
+import { trashKeys } from '../../../_trash.js';
 
 const MAX_HTML_BYTES = 5 * 1024 * 1024; // 5MB
 const MAX_MD_BYTES = 1 * 1024 * 1024;   // 1MB — 에디터 방 마크다운 원본
@@ -222,8 +223,10 @@ export async function onRequestDelete(context) {
   if (pid !== 'main' && !PID_RE.test(pid)) return json({ error: 'invalid id' }, 400);
 
   const k = keys(g.room, pid);
-  await context.env.SPACE.delete(k.html);
-  await context.env.SPACE.delete(k.md);
+  // 즉시 파괴 대신 휴지통으로 이동(soft-delete) — main은 'page', 추가 탭은 'tab'으로 보관.
+  const trashTitle = pid === 'main' ? ((g.meta && g.meta.title) || '') : '';
+  await trashKeys(context.env, g.room, pid === 'main' ? 'page' : 'tab',
+    pid === 'main' ? null : pid, trashTitle, [k.html, k.md]);
 
   if (pid === 'main') {
     // 다음 페이지 승격 — 키가 시각순이라 목록 첫 .html이 가장 오래된(다음) 페이지
