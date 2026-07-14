@@ -90,6 +90,27 @@ export async function trashKeys(env, room, kind, pid, title, keyList) {
   return trashId;
 }
 
+// 메모(첨부 파일 포함)를 휴지통으로. note = notes.json 항목 객체.
+export async function trashNote(env, room, note) {
+  const trashId = 'note__' + room + '__' + trashStamp();
+  const base = TRASH + trashId + '/';
+  const files = [];
+  for (const f of (note.files || [])) {
+    const src = 'rooms/' + room + '/files/' + f.id;
+    if (await moveKey(env, src, base + 'data/files/' + f.id)) files.push('files/' + f.id);
+  }
+  const info = {
+    trashId: trashId, kind: 'note', room: room, pid: null,
+    title: note.title || (note.text ? String(note.text).slice(0, 30) : '(메모)'),
+    meta: null, note: note, seed: false,
+    files: files, deletedAt: nowKST(),
+  };
+  await env.SPACE.put(base + '__info.json', JSON.stringify(info), {
+    httpMetadata: { contentType: 'application/json; charset=utf-8' },
+  });
+  return trashId;
+}
+
 // 휴지통 목록(__info.json 모음, 최신 삭제순)
 export async function listTrash(env) {
   const infos = [];
