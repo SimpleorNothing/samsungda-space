@@ -58,6 +58,22 @@ export async function onRequestPost(context) {
     if (Array.isArray(index.layout) && index.layout.indexOf(info.room) === -1) {
       index.layout.push(info.room);
     }
+  } else if (info.kind === 'note') {
+    // 메모 복구 — 파일은 restoreTrash가 이미 복원. notes.json에 메모 항목 재삽입.
+    const notesKey = 'rooms/' + info.room + '/notes.json';
+    let notesData = { items: [] };
+    const nobj = await context.env.SPACE.get(notesKey);
+    if (nobj) { try { notesData = JSON.parse(await nobj.text()); } catch (e) { notesData = { items: [] }; } }
+    if (!Array.isArray(notesData.items)) notesData.items = [];
+    if (info.note && !notesData.items.some(function (n) { return n.id === info.note.id; })) {
+      notesData.items = [info.note].concat(notesData.items);
+    }
+    await context.env.SPACE.put(notesKey, JSON.stringify(notesData), {
+      httpMetadata: { contentType: 'application/json; charset=utf-8' },
+    });
+    const meta = index.rooms[info.room] || {};
+    meta.updatedAt = nowKST();
+    index.rooms[info.room] = meta;
   } else {
     // page/tab 복구 — 방 meta의 게시 상태·갱신시각 정리
     const meta = index.rooms[info.room] || { passwordHash: null, expiresAt: null };
