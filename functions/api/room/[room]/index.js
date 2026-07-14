@@ -1,10 +1,11 @@
 // /api/room/:room — 웹페이지 게시(POST)·교체(PUT)·삭제(DELETE)
 // 비공개 방은 인증 쿠키 또는 x-room-password 헤더 필요.
-// 비밀번호·사용기한 설정은 /api/room/:room/settings 로 분리됨 — 여기서는 다루지 않음.
+// 비밀번호·사용기한 설정은 /api/room/:room/settings 로 분리됨 — 여기서는 다루지 않는다.
 import {
   isValidRoomId, roomExists, readIndex, writeIndex,
   isAuthorized, metaIsEmpty, pageExists, json,
 } from '../../../_lib.js';
+import { trashKeys } from '../../../_trash.js';
 
 const MAX_HTML_BYTES = 5 * 1024 * 1024; // 5MB
 const MAX_MD_BYTES = 1 * 1024 * 1024;   // 1MB — 에디터 방 마크다운 원본
@@ -98,7 +99,7 @@ export async function onRequestPut(context) {
   return json({ ok: true });
 }
 
-// 웹페이지 삭제 — 게시 해제. 비공개·사용기한 설정과 메모·대나무숲은 유지.
+// 웹페이지 삭제 — 게시 해제. 비공개·사용기한 설정과 메모·대나무숨은 유지.
 export async function onRequestDelete(context) {
   const room = context.params.room;
   if (!isValidRoomId(room)) return json({ error: 'unknown room' }, 404);
@@ -114,8 +115,9 @@ export async function onRequestDelete(context) {
   if (!(await isAuthorized(context.request, room, meta))) return json({ error: 'unauthorized' }, 401);
 
   // page.html이 이미 없어도 무해(멱등). 남아있던 플래그까지 함께 정리해 불일치를 치유한다.
-  await context.env.SPACE.delete('rooms/' + room + '/page.html');
-  await context.env.SPACE.delete('rooms/' + room + '/source.md');
+  // 즉시 파괴 대신 휴지통으로 이동(soft-delete) — 30일 후 Lifecycle 자동정리.
+  await trashKeys(context.env, room, 'page', null, (meta && meta.title) || '',
+    ['rooms/' + room + '/page.html', 'rooms/' + room + '/source.md']);
 
   if (meta) {
     meta.published = false;
