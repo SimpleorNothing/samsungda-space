@@ -990,7 +990,7 @@ section{margin-bottom:40px}
   var trashList = document.getElementById('trashList');
   if(!trashBtn || !trashModal || !trashList) return;
 
-  var KIND = { room: '방', page: '웹페이지', tab: '웹페이지 탭' };
+  var KIND = { room: '방', page: '웹페이지', tab: '웹페이지 탭', note: '메모' };
 
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){

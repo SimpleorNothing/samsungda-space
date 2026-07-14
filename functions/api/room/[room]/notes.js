@@ -1,6 +1,7 @@
 // /api/room/:room/notes — GET 목록, POST 작성(메모+파일 멀티파트), PUT 수정(JSON), DELETE ?id= 삭제
 // 비밀번호 설정된 방은 인증 쿠키 또는 x-room-password 헤더 필요.
 import { isValidRoomId, roomExists, readIndex, writeIndex, isAuthorized, json } from '../../../_lib.js';
+import { trashNote } from '../../../_trash.js';
 
 const MAX_TEXT_CHARS = 5000;
 const MAX_TITLE_CHARS = 60;
@@ -167,9 +168,9 @@ export async function onRequestDelete(context) {
   const target = items.find(function (n) { return n.id === id; });
   if (!target) return json({ error: 'not found' }, 404);
 
-  for (const f of (target.files || [])) {
-    await context.env.SPACE.delete('rooms/' + room + '/files/' + f.id);
-  }
+  // 첨부 파일 + 메모를 휴지통으로 이동(soft-delete) — 즉시 삭제 대신 30일 보관.
+  await trashNote(context.env, room, target);
+
   data.items = items.filter(function (n) { return n.id !== id; });
   if (data.items.length === 0) {
     // 빈 notes.json은 삭제 — 'notes.json 존재 = 메모 있음'으로 점유 판정에 사용됨
