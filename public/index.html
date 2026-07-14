@@ -263,6 +263,7 @@ section{margin-bottom:40px}
         <button class="addbtn" id="addRoomBtn" type="button">+ 빈방 추가</button>
         <button class="addbtn" id="addDivBtn" type="button" style="display:none">+ 구분선 추가</button>
         <button class="addbtn" id="mgrBtn" type="button">방 관리</button>
+        <button class="addbtn" id="trashBtn" type="button">휴지통</button>
         <button class="addbtn" id="helpBtn" type="button">사용방법</button>
       </div>
     </div>
@@ -373,6 +374,20 @@ section{margin-bottom:40px}
         <span><span class="badge exp">~07-09</span> 사용 기한</span>
         <span><span class="badge expired">기한 만료</span> 기한 지남</span>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 휴지통 모달 -->
+<div class="modal-overlay" id="trashModal" role="dialog" aria-modal="true" aria-labelledby="trashTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="trashTitle">휴지통</h2>
+      <button class="modal-close" id="trashClose" type="button" aria-label="닫기">&times;</button>
+    </div>
+    <p class="modal-sub">삭제한 방·웹페이지·탭을 보관합니다. 30일 후 자동 정리됩니다.</p>
+    <div id="trashList">
+      <p style="font-size:13px;color:#999">불러오는 중…</p>
     </div>
   </div>
 </div>
@@ -963,6 +978,84 @@ section{margin-bottom:40px}
   });
 
   loadRooms();
+})();
+</script>
+
+<!-- 휴지통 -->
+<script>
+(function(){
+  var trashBtn = document.getElementById('trashBtn');
+  var trashModal = document.getElementById('trashModal');
+  var trashClose = document.getElementById('trashClose');
+  var trashList = document.getElementById('trashList');
+  if(!trashBtn || !trashModal || !trashList) return;
+
+  var KIND = { room: '방', page: '웹페이지', tab: '웹페이지 탭' };
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function open(){ trashModal.classList.add('open'); load(); }
+  function close(){ trashModal.classList.remove('open'); }
+
+  function load(){
+    trashList.innerHTML = '<p style="font-size:13px;color:#999">불러오는 중…</p>';
+    fetch('/api/trash', { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function(data){ render(data.items || []); })
+      .catch(function(e){ trashList.innerHTML = '<p style="font-size:13px;color:#B02E24">불러오기 실패: ' + esc(e.message) + '</p>'; });
+  }
+
+  function render(items){
+    if(!items.length){
+      trashList.innerHTML = '<p style="font-size:13px;color:var(--muted)">휴지통이 비어 있습니다.</p>';
+      return;
+    }
+    trashList.innerHTML = items.map(function(it){
+      var label = KIND[it.kind] || it.kind;
+      var name = esc(it.room) + (it.pid ? ' · ' + esc(it.pid) : '');
+      var title = it.title ? ' — ' + esc(it.title) : '';
+      var nfiles = (it.files && it.files.length) || 0;
+      return '<div class="help-item" style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+        + '<div style="min-width:0">'
+        +   '<h4 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+        +     '<span class="tag">' + esc(label) + '</span>' + name
+        +     '<span style="color:var(--muted);font-weight:400">' + title + '</span>'
+        +   '</h4>'
+        +   '<p style="margin-top:6px">삭제 ' + esc(it.deletedAt || '') + ' · 파일 ' + nfiles + '개</p>'
+        + '</div>'
+        + '<div class="mgr" style="margin:0;padding:0;border:none;flex:none">'
+        +   '<button type="button" data-act="restore" data-id="' + esc(it.trashId) + '">복구</button>'
+        +   '<button type="button" data-act="purge" data-id="' + esc(it.trashId) + '">영구삭제</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  trashList.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('button[data-act]') : null;
+    if(!btn) return;
+    var act = btn.getAttribute('data-act');
+    var id = btn.getAttribute('data-id');
+    if(act === 'purge' && !window.confirm('영구 삭제하면 되돌릴 수 없습니다. 계속할까요?')) return;
+    if(act === 'restore' && !window.confirm('이 항목을 복구할까요?')) return;
+    btn.disabled = true;
+    fetch('/api/trash', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ trashId: id, action: act })
+    }).then(function(r){ return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function(){ if(act === 'restore'){ location.reload(); } else { load(); } })
+      .catch(function(e){ btn.disabled = false; window.alert('실패: ' + e.message); });
+  });
+
+  trashBtn.addEventListener('click', open);
+  trashClose.addEventListener('click', close);
+  trashModal.addEventListener('click', function(e){ if(e.target === trashModal) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
 })();
 </script>
 <!-- 도구모음 런처 (samsungda.net) -->
